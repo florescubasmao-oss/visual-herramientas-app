@@ -25,7 +25,7 @@
 
   iniciar();
 
-  function iniciar() {
+  async function iniciar() {
     configurarTema();
 
     apiLink.href = config.API_URL;
@@ -45,12 +45,22 @@
 
     const sesionGuardada = leerSesionGuardada();
 
-    if (sesionGuardada) {
-      auth = sesionGuardada;
-      mostrarAplicacion();
-    } else {
+    if (!sesionGuardada) {
       mostrarLogin();
+      return;
     }
+
+    auth = sesionGuardada;
+
+    const sesionValidada = await validarSesionRemota();
+
+    if (!sesionValidada) {
+      limpiarSesion();
+      mostrarLogin();
+      return;
+    }
+
+    mostrarAplicacion();
   }
 
   async function manejarLogin(event) {
@@ -65,8 +75,7 @@
       return;
     }
 
-    loginButton.disabled = true;
-    loginButton.textContent = 'Ingresando…';
+    cambiarEstadoLogin(true);
 
     try {
       const respuesta = await solicitarApi({
@@ -81,35 +90,68 @@
         return;
       }
 
-      const segundos = Number(respuesta.expiraEnSegundos || 21600);
-
-      auth = {
-        token: respuesta.token,
-        usuario: respuesta.usuario,
-        expiraEn: Date.now() + segundos * 1000
-      };
-
-      localStorage.setItem(
-        config.STORAGE_KEY,
-        JSON.stringify(auth)
-      );
-
+      guardarSesion(respuesta);
       claveInput.value = '';
       mostrarAplicacion();
+      mostrarToast('Inicio de sesión correcto');
 
     } catch (error) {
       console.error(error);
       loginMessage.textContent =
         'No se pudo conectar con la API. Inténtalo nuevamente.';
     } finally {
-      loginButton.disabled = false;
-      loginButton.textContent = 'Ingresar';
+      cambiarEstadoLogin(false);
+    }
+  }
+
+  function guardarSesion(respuesta) {
+    const segundos = Number(respuesta.expiraEnSegundos || 21600);
+
+    auth = {
+      token: respuesta.token,
+      usuario: respuesta.usuario,
+      expiraEn: Date.now() + segundos * 1000
+    };
+
+    localStorage.setItem(
+      config.STORAGE_KEY,
+      JSON.stringify(auth)
+    );
+  }
+
+  async function validarSesionRemota() {
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'validar_sesion',
+        token: auth.token
+      });
+
+      if (!respuesta.correcto || !respuesta.usuario) {
+        return false;
+      }
+
+      auth.usuario = respuesta.usuario;
+
+      const segundos = Number(respuesta.expiraEnSegundos || 21600);
+      auth.expiraEn = Date.now() + segundos * 1000;
+
+      localStorage.setItem(
+        config.STORAGE_KEY,
+        JSON.stringify(auth)
+      );
+
+      return true;
+
+    } catch (error) {
+      console.warn('No se pudo validar la sesión remota.', error);
+      return false;
     }
   }
 
   function mostrarLogin() {
     appView.hidden = true;
     loginView.hidden = false;
+    loginMessage.textContent = '';
     correoInput.focus();
   }
 
@@ -131,15 +173,86 @@
       `Sesión activa como ${formatearTexto(usuario.perfil || '')}. ` +
       `Sede base: ${formatearTexto(usuario.sedeBase || 'No definida')}.`;
 
+    aplicarPermisosModulos(usuario.permisos || []);
+
     loginView.hidden = true;
     appView.hidden = false;
+  }
+
+  function aplicarPermisosModulos(permisos) {
+    const permisosPorModulo = new Map(
+      permisos.map((permiso) => [
+        String(permiso.modulo || '').trim().toUpperCase(),
+        permiso
+      ])
+    );
+
+    document.querySelectorAll('[data-module]').forEach((button) => {
+      const modulo = String(button.dataset.module || '')
+        .trim()
+        .toUpperCase();
+
+      const permiso = permisosPorModulo.get(modulo);
+      const puedeVer = Boolean(permiso && permiso.ver === true);
+
+      button.hidden = !puedeVer;
+
+      if (puedeVer) {
+        button.dataset.puedeRegistrar = String(Boolean(permiso.registrar));
+        button.dataset.puedeEditar = String(Boolean(permiso.editar));
+        button.dataset.puedeAprobar = String(Boolean(permiso.aprobar));
+        button.dataset.puedeAnular = String(Boolean(permiso.anular));
+        button.dataset.puedeDescargar = String(Boolean(permiso.descargar));
+        button.dataset.puedeAdministrar = String(Boolean(permiso.administrar));
+        button.dataset.alcanceSede = permiso.alcanceSede || '';
+        button.dataset.sedeBase = permiso.sedeBase || '';
+      }
+    });
+
+    actualizarVisibilidadSeccionModulos();
+  }
+
+  function actualizarVisibilidadSeccionModulos() {
+    const botones = Array.from(
+      document.querySelectorAll('[data-module]')
+    );
+
+    const visibles = botones.filter((button) => !button.hidden);
+    const seccion = botones[0] ? botones[0].closest('section') : null;
+
+    if (!seccion) return;
+
+    let mensaje = seccion.querySelector('[data-empty-modules]');
+
+    if (visibles.length > 0) {
+      if (mensaje) mensaje.remove();
+      return;
+    }
+
+    if (!mensaje) {
+      mensaje = document.createElement('p');
+      mensaje.dataset.emptyModules = 'true';
+      mensaje.textContent =
+        'Tu perfil no tiene módulos habilitados. Comunícate con el administrador.';
+      mensaje.style.padding = '18px';
+      mensaje.style.border = '1px solid var(--border)';
+      mensaje.style.borderRadius = '14px';
+      mensaje.style.background = 'var(--surface)';
+      mensaje.style.color = 'var(--muted)';
+
+      const grid = seccion.querySelector('.modules-grid');
+      if (grid) {
+        grid.insertAdjacentElement('afterend', mensaje);
+      } else {
+        seccion.appendChild(mensaje);
+      }
+    }
   }
 
   async function cerrarSesion() {
     const token = auth && auth.token ? auth.token : '';
 
-    localStorage.removeItem(config.STORAGE_KEY);
-    auth = null;
+    limpiarSesion();
     mostrarLogin();
 
     if (!token) return;
@@ -152,6 +265,11 @@
     } catch (error) {
       console.warn('No se pudo notificar el cierre a la API.', error);
     }
+  }
+
+  function limpiarSesion() {
+    localStorage.removeItem(config.STORAGE_KEY);
+    auth = null;
   }
 
   async function solicitarApi(payload) {
@@ -191,6 +309,7 @@
       }
 
       return sesion;
+
     } catch (error) {
       localStorage.removeItem(config.STORAGE_KEY);
       return null;
@@ -202,6 +321,11 @@
 
     claveInput.type = estaVisible ? 'password' : 'text';
     togglePassword.textContent = estaVisible ? 'Ver' : 'Ocultar';
+  }
+
+  function cambiarEstadoLogin(cargando) {
+    loginButton.disabled = cargando;
+    loginButton.textContent = cargando ? 'Ingresando…' : 'Ingresar';
   }
 
   function configurarTema() {
