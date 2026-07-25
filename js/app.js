@@ -1,10 +1,245 @@
-(()=>{'use strict';const c=window.VH_CONFIG,$=id=>document.getElementById(id),root=document.documentElement,loginView=$('loginView'),appView=$('appView'),form=$('loginForm'),correo=$('correo'),clave=$('clave'),btn=$('loginButton'),msg=$('loginMessage'),toggle=$('togglePassword'),theme=$('themeToggle'),logout=$('logoutButton'),apiLink=$('apiLink'),version=$('appVersion'),userName=$('userName'),userProfile=$('userProfile'),welcome=$('welcomeText'),toast=$('toast');let auth=null;
-init();
-function init(){if(localStorage.getItem('vh-theme')==='dark'){root.dataset.theme='dark';theme.textContent='☀'}apiLink.href=c.API_URL;version.textContent=`Versión ${c.VERSION}`;form.addEventListener('submit',login);toggle.addEventListener('click',()=>{const v=clave.type==='text';clave.type=v?'password':'text';toggle.textContent=v?'Ver':'Ocultar'});theme.addEventListener('click',toggleTheme);logout.addEventListener('click',closeSession);document.querySelectorAll('[data-module]').forEach(b=>b.addEventListener('click',()=>showToast(`${b.dataset.module}: módulo pendiente de implementación`)));const saved=readSession();saved?(auth=saved,showApp()):showLogin()}
-async function login(e){e.preventDefault();msg.textContent='';const email=correo.value.trim().toLowerCase(),password=clave.value;if(!email||!password){msg.textContent='Ingresa correo y contraseña.';return}setLoading(true);try{const r=await api({accion:'login',correo:email,clave:password});if(!r.correcto){msg.textContent=r.mensaje||'No se pudo iniciar sesión.';return}const seconds=Number(r.expiraEnSegundos||21600);auth={token:r.token,usuario:r.usuario,expiraEn:Date.now()+seconds*1000};localStorage.setItem(c.STORAGE_KEY,JSON.stringify(auth));clave.value='';showApp();showToast('Inicio de sesión correcto')}catch(err){console.error(err);msg.textContent='No se pudo conectar con la API. Verifica internet e inténtalo nuevamente.'}finally{setLoading(false)}}
-async function closeSession(){const token=auth?.token||'';localStorage.removeItem(c.STORAGE_KEY);auth=null;showLogin();if(token)try{await api({accion:'cerrar_sesion',token})}catch(e){console.warn(e)}}
-function showApp(){if(!auth?.usuario){showLogin();return}const u=auth.usuario;userName.textContent=u.nombre||u.correo||'Usuario';userProfile.textContent=pretty(u.perfil);welcome.textContent=`Sesión activa como ${pretty(u.perfil)}. Sede base: ${pretty(u.sedeBase)||'No definida'}.`;loginView.classList.add('hidden');appView.classList.remove('hidden')}
-function showLogin(){appView.classList.add('hidden');loginView.classList.remove('hidden');msg.textContent='';setTimeout(()=>correo.focus(),0)}
-function readSession(){try{const s=JSON.parse(localStorage.getItem(c.STORAGE_KEY)||'null');if(!s?.token||!s?.usuario||!s?.expiraEn||Date.now()>=Number(s.expiraEn)){localStorage.removeItem(c.STORAGE_KEY);return null}return s}catch(e){localStorage.removeItem(c.STORAGE_KEY);return null}}
-async function api(payload){const r=await fetch(c.API_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()}
-function setLoading(v){btn.disabled=v;btn.textContent=v?'Ingresando…':'Ingresar'}function toggleTheme(){const dark=root.dataset.theme==='dark';dark?delete root.dataset.theme:root.dataset.theme='dark';localStorage.setItem('vh-theme',dark?'light':'dark');theme.textContent=dark?'☾':'☀'}function pretty(v=''){return String(v).replaceAll('_',' ').toLowerCase().replace(/\b\p{L}/gu,x=>x.toUpperCase())}function showToast(t){toast.textContent=t;toast.classList.add('visible');clearTimeout(showToast.id);showToast.id=setTimeout(()=>toast.classList.remove('visible'),2300)}})();
+(() => {
+  'use strict';
+
+  const config = window.VH_CONFIG;
+  const root = document.documentElement;
+
+  const loginView = document.getElementById('loginView');
+  const appView = document.getElementById('appView');
+  const loginForm = document.getElementById('loginForm');
+  const correoInput = document.getElementById('correo');
+  const claveInput = document.getElementById('clave');
+  const loginButton = document.getElementById('loginButton');
+  const loginMessage = document.getElementById('loginMessage');
+  const togglePassword = document.getElementById('togglePassword');
+  const themeToggle = document.getElementById('themeToggle');
+  const logoutButton = document.getElementById('logoutButton');
+  const apiLink = document.getElementById('apiLink');
+  const appVersion = document.getElementById('appVersion');
+  const userName = document.getElementById('userName');
+  const userProfile = document.getElementById('userProfile');
+  const welcomeText = document.getElementById('welcomeText');
+  const toast = document.getElementById('toast');
+
+  let auth = null;
+
+  iniciar();
+
+  function iniciar() {
+    configurarTema();
+
+    apiLink.href = config.API_URL;
+    appVersion.textContent = `Versión ${config.VERSION}`;
+
+    loginForm.addEventListener('submit', manejarLogin);
+    togglePassword.addEventListener('click', alternarClaveVisible);
+    themeToggle.addEventListener('click', alternarTema);
+    logoutButton.addEventListener('click', cerrarSesion);
+
+    document.querySelectorAll('[data-module]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const moduleName = button.dataset.module.replaceAll('_', ' ');
+        mostrarToast(`${moduleName}: módulo pendiente de implementación`);
+      });
+    });
+
+    const sesionGuardada = leerSesionGuardada();
+
+    if (sesionGuardada) {
+      auth = sesionGuardada;
+      mostrarAplicacion();
+    } else {
+      mostrarLogin();
+    }
+  }
+
+  async function manejarLogin(event) {
+    event.preventDefault();
+    loginMessage.textContent = '';
+
+    const correo = correoInput.value.trim().toLowerCase();
+    const clave = claveInput.value;
+
+    if (!correo || !clave) {
+      loginMessage.textContent = 'Ingresa correo y contraseña.';
+      return;
+    }
+
+    loginButton.disabled = true;
+    loginButton.textContent = 'Ingresando…';
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'login',
+        correo,
+        clave
+      });
+
+      if (!respuesta.correcto) {
+        loginMessage.textContent =
+          respuesta.mensaje || 'No se pudo iniciar sesión.';
+        return;
+      }
+
+      const segundos = Number(respuesta.expiraEnSegundos || 21600);
+
+      auth = {
+        token: respuesta.token,
+        usuario: respuesta.usuario,
+        expiraEn: Date.now() + segundos * 1000
+      };
+
+      localStorage.setItem(
+        config.STORAGE_KEY,
+        JSON.stringify(auth)
+      );
+
+      claveInput.value = '';
+      mostrarAplicacion();
+
+    } catch (error) {
+      console.error(error);
+      loginMessage.textContent =
+        'No se pudo conectar con la API. Inténtalo nuevamente.';
+    } finally {
+      loginButton.disabled = false;
+      loginButton.textContent = 'Ingresar';
+    }
+  }
+
+  function mostrarLogin() {
+    appView.hidden = true;
+    loginView.hidden = false;
+    correoInput.focus();
+  }
+
+  function mostrarAplicacion() {
+    if (!auth || !auth.usuario) {
+      mostrarLogin();
+      return;
+    }
+
+    const usuario = auth.usuario;
+
+    userName.textContent =
+      usuario.nombre || usuario.correo || 'Usuario';
+
+    userProfile.textContent =
+      formatearTexto(usuario.perfil || '');
+
+    welcomeText.textContent =
+      `Sesión activa como ${formatearTexto(usuario.perfil || '')}. ` +
+      `Sede base: ${formatearTexto(usuario.sedeBase || 'No definida')}.`;
+
+    loginView.hidden = true;
+    appView.hidden = false;
+  }
+
+  async function cerrarSesion() {
+    const token = auth && auth.token ? auth.token : '';
+
+    localStorage.removeItem(config.STORAGE_KEY);
+    auth = null;
+    mostrarLogin();
+
+    if (!token) return;
+
+    try {
+      await solicitarApi({
+        accion: 'cerrar_sesion',
+        token
+      });
+    } catch (error) {
+      console.warn('No se pudo notificar el cierre a la API.', error);
+    }
+  }
+
+  async function solicitarApi(payload) {
+    const response = await fetch(config.API_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Respuesta HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  function leerSesionGuardada() {
+    try {
+      const contenido = localStorage.getItem(config.STORAGE_KEY);
+
+      if (!contenido) return null;
+
+      const sesion = JSON.parse(contenido);
+
+      if (
+        !sesion ||
+        !sesion.token ||
+        !sesion.usuario ||
+        !sesion.expiraEn ||
+        Date.now() >= Number(sesion.expiraEn)
+      ) {
+        localStorage.removeItem(config.STORAGE_KEY);
+        return null;
+      }
+
+      return sesion;
+    } catch (error) {
+      localStorage.removeItem(config.STORAGE_KEY);
+      return null;
+    }
+  }
+
+  function alternarClaveVisible() {
+    const estaVisible = claveInput.type === 'text';
+
+    claveInput.type = estaVisible ? 'password' : 'text';
+    togglePassword.textContent = estaVisible ? 'Ver' : 'Ocultar';
+  }
+
+  function configurarTema() {
+    if (localStorage.getItem('vh-theme') === 'dark') {
+      root.dataset.theme = 'dark';
+      themeToggle.textContent = '☀';
+    }
+  }
+
+  function alternarTema() {
+    const estaOscuro = root.dataset.theme === 'dark';
+
+    if (estaOscuro) {
+      delete root.dataset.theme;
+      localStorage.setItem('vh-theme', 'light');
+      themeToggle.textContent = '☾';
+    } else {
+      root.dataset.theme = 'dark';
+      localStorage.setItem('vh-theme', 'dark');
+      themeToggle.textContent = '☀';
+    }
+  }
+
+  function formatearTexto(valor) {
+    return String(valor)
+      .replaceAll('_', ' ')
+      .toLowerCase()
+      .replace(/\b\p{L}/gu, (letra) => letra.toUpperCase());
+  }
+
+  function mostrarToast(mensaje) {
+    toast.textContent = mensaje;
+    toast.classList.add('visible');
+
+    window.clearTimeout(mostrarToast.timeoutId);
+
+    mostrarToast.timeoutId = window.setTimeout(() => {
+      toast.classList.remove('visible');
+    }, 2200);
+  }
+})();
