@@ -1,50 +1,10 @@
-(() => {
-  'use strict';
-
-  const config = window.VH_CONFIG;
-  const root = document.documentElement;
-  const themeToggle = document.getElementById('themeToggle');
-  const apiLink = document.getElementById('apiLink');
-  const appVersion = document.getElementById('appVersion');
-  const toast = document.getElementById('toast');
-
-  const savedTheme = localStorage.getItem('vh-theme');
-  if (savedTheme === 'dark') {
-    root.dataset.theme = 'dark';
-    themeToggle.textContent = '☀';
-  }
-
-  apiLink.href = config.API_URL;
-  appVersion.textContent = `Versión ${config.VERSION}`;
-
-  themeToggle.addEventListener('click', () => {
-    const darkMode = root.dataset.theme === 'dark';
-
-    if (darkMode) {
-      delete root.dataset.theme;
-      localStorage.setItem('vh-theme', 'light');
-      themeToggle.textContent = '☾';
-    } else {
-      root.dataset.theme = 'dark';
-      localStorage.setItem('vh-theme', 'dark');
-      themeToggle.textContent = '☀';
-    }
-  });
-
-  document.querySelectorAll('[data-module]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const moduleName = button.dataset.module.replaceAll('_', ' ');
-      showToast(`${moduleName}: módulo pendiente de implementación`);
-    });
-  });
-
-  function showToast(message) {
-    toast.textContent = message;
-    toast.classList.add('visible');
-
-    window.clearTimeout(showToast.timeoutId);
-    showToast.timeoutId = window.setTimeout(() => {
-      toast.classList.remove('visible');
-    }, 2400);
-  }
-})();
+(()=>{'use strict';const c=window.VH_CONFIG,$=id=>document.getElementById(id),root=document.documentElement,loginView=$('loginView'),appView=$('appView'),form=$('loginForm'),correo=$('correo'),clave=$('clave'),btn=$('loginButton'),msg=$('loginMessage'),toggle=$('togglePassword'),theme=$('themeToggle'),logout=$('logoutButton'),apiLink=$('apiLink'),version=$('appVersion'),userName=$('userName'),userProfile=$('userProfile'),welcome=$('welcomeText'),toast=$('toast');let auth=null;
+init();
+function init(){if(localStorage.getItem('vh-theme')==='dark'){root.dataset.theme='dark';theme.textContent='☀'}apiLink.href=c.API_URL;version.textContent=`Versión ${c.VERSION}`;form.addEventListener('submit',login);toggle.addEventListener('click',()=>{const v=clave.type==='text';clave.type=v?'password':'text';toggle.textContent=v?'Ver':'Ocultar'});theme.addEventListener('click',toggleTheme);logout.addEventListener('click',closeSession);document.querySelectorAll('[data-module]').forEach(b=>b.addEventListener('click',()=>showToast(`${b.dataset.module}: módulo pendiente de implementación`)));const saved=readSession();saved?(auth=saved,showApp()):showLogin()}
+async function login(e){e.preventDefault();msg.textContent='';const email=correo.value.trim().toLowerCase(),password=clave.value;if(!email||!password){msg.textContent='Ingresa correo y contraseña.';return}setLoading(true);try{const r=await api({accion:'login',correo:email,clave:password});if(!r.correcto){msg.textContent=r.mensaje||'No se pudo iniciar sesión.';return}const seconds=Number(r.expiraEnSegundos||21600);auth={token:r.token,usuario:r.usuario,expiraEn:Date.now()+seconds*1000};localStorage.setItem(c.STORAGE_KEY,JSON.stringify(auth));clave.value='';showApp();showToast('Inicio de sesión correcto')}catch(err){console.error(err);msg.textContent='No se pudo conectar con la API. Verifica internet e inténtalo nuevamente.'}finally{setLoading(false)}}
+async function closeSession(){const token=auth?.token||'';localStorage.removeItem(c.STORAGE_KEY);auth=null;showLogin();if(token)try{await api({accion:'cerrar_sesion',token})}catch(e){console.warn(e)}}
+function showApp(){if(!auth?.usuario){showLogin();return}const u=auth.usuario;userName.textContent=u.nombre||u.correo||'Usuario';userProfile.textContent=pretty(u.perfil);welcome.textContent=`Sesión activa como ${pretty(u.perfil)}. Sede base: ${pretty(u.sedeBase)||'No definida'}.`;loginView.classList.add('hidden');appView.classList.remove('hidden')}
+function showLogin(){appView.classList.add('hidden');loginView.classList.remove('hidden');msg.textContent='';setTimeout(()=>correo.focus(),0)}
+function readSession(){try{const s=JSON.parse(localStorage.getItem(c.STORAGE_KEY)||'null');if(!s?.token||!s?.usuario||!s?.expiraEn||Date.now()>=Number(s.expiraEn)){localStorage.removeItem(c.STORAGE_KEY);return null}return s}catch(e){localStorage.removeItem(c.STORAGE_KEY);return null}}
+async function api(payload){const r=await fetch(c.API_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()}
+function setLoading(v){btn.disabled=v;btn.textContent=v?'Ingresando…':'Ingresar'}function toggleTheme(){const dark=root.dataset.theme==='dark';dark?delete root.dataset.theme:root.dataset.theme='dark';localStorage.setItem('vh-theme',dark?'light':'dark');theme.textContent=dark?'☾':'☀'}function pretty(v=''){return String(v).replaceAll('_',' ').toLowerCase().replace(/\b\p{L}/gu,x=>x.toUpperCase())}function showToast(t){toast.textContent=t;toast.classList.add('visible');clearTimeout(showToast.id);showToast.id=setTimeout(()=>toast.classList.remove('visible'),2300)}})();

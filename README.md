@@ -1,16 +1,15 @@
 # VISUAL HERRAMIENTAS
 
-Versión inicial del frontend estático para GitHub Pages.
+## Versión 0.2.0
 
-## Contenido
+Actualización incremental del frontend para GitHub Pages.
 
-- `index.html`: estructura principal.
-- `css/styles.css`: diseño responsive y modo oscuro.
-- `js/config.js`: configuración y URL de Apps Script.
-- `js/app.js`: comportamiento visual inicial.
+Incluye:
+- Inicio de sesión con correo y contraseña fija.
+- Integración con Apps Script mediante la acción `login`.
+- Cierre de sesión.
+- Persistencia de sesión durante el tiempo indicado por la API.
+- Visualización de nombre, perfil y sede base.
+- Modo oscuro y diseño responsive.
 
-## Estado
-
-Esta versión no registra ni modifica datos. Solo contiene la base visual y el enlace de verificación hacia la API vigente de Apps Script.
-
-Versión: `0.1.0`
+Este ZIP no modifica `Código.gs`.

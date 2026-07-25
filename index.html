@@ -8,21 +8,43 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <div class="app-shell">
+  <main id="loginView" class="login-view">
+    <section class="login-card" aria-labelledby="loginTitle">
+      <p class="eyebrow">Visual Connections</p>
+      <h1 id="loginTitle">VISUAL HERRAMIENTAS</h1>
+      <p class="subtitle">Sistema de Control y Gestión de Herramientas</p>
+
+      <form id="loginForm" class="login-form" novalidate>
+        <label>Correo
+          <input id="correo" type="email" autocomplete="username" placeholder="usuario@correo.com" required>
+        </label>
+        <label>Contraseña
+          <span class="password-field">
+            <input id="clave" type="password" autocomplete="current-password" placeholder="Ingresa tu contraseña" required>
+            <button id="togglePassword" type="button">Ver</button>
+          </span>
+        </label>
+        <p id="loginMessage" class="form-message" role="alert"></p>
+        <button id="loginButton" class="primary-button" type="submit">Ingresar</button>
+      </form>
+      <p class="login-help">Acceso exclusivo para personal autorizado.</p>
+    </section>
+  </main>
+
+  <div id="appView" class="app-shell hidden">
     <header class="topbar">
       <div>
         <p class="eyebrow">Visual Connections</p>
         <h1>VISUAL HERRAMIENTAS</h1>
         <p class="subtitle">Sistema de Control y Gestión de Herramientas</p>
       </div>
-
       <div class="topbar-actions">
-        <span id="apiBadge" class="status-badge" aria-live="polite">
-          API configurada
-        </span>
-        <button id="themeToggle" class="icon-button" type="button" aria-label="Cambiar tema">
-          ☾
-        </button>
+        <div class="user-summary">
+          <strong id="userName">Usuario</strong>
+          <span id="userProfile">Perfil</span>
+        </div>
+        <button id="themeToggle" class="icon-button" type="button" title="Cambiar tema">☾</button>
+        <button id="logoutButton" class="logout-button" type="button">Cerrar sesión</button>
       </div>
     </header>
 
@@ -31,127 +53,42 @@
         <div>
           <p class="section-label">Inicio</p>
           <h2>Control operativo Zona Norte</h2>
-          <p>
-            Base inicial para administrar herramientas, EPP, stock, movimientos,
-            inventarios, mantenimiento y cargos.
-          </p>
+          <p id="welcomeText">Sesión activa.</p>
         </div>
-        <a id="apiLink" class="secondary-button" href="#" target="_blank" rel="noopener">
-          Verificar API
-        </a>
+        <a id="apiLink" class="secondary-button" href="#" target="_blank" rel="noopener">Verificar API</a>
       </section>
 
-      <section aria-labelledby="resumen-title">
-        <div class="section-heading">
-          <div>
-            <p class="section-label">Resumen</p>
-            <h2 id="resumen-title">Stock por sede</h2>
-          </div>
-        </div>
-
+      <section>
+        <p class="section-label">Resumen</p>
+        <h2>Stock por sede</h2>
         <div class="metrics-grid">
-          <article class="metric-card metric-primary">
-            <span>Zona Norte</span>
-            <strong>0</strong>
-            <small>Total registrado</small>
-          </article>
-
-          <article class="metric-card">
-            <span>Chiclayo</span>
-            <strong>0</strong>
-            <small>Almacén + cuadrillas</small>
-          </article>
-
-          <article class="metric-card">
-            <span>Piura</span>
-            <strong>0</strong>
-            <small>Almacén + cuadrillas</small>
-          </article>
-
-          <article class="metric-card">
-            <span>Trujillo</span>
-            <strong>0</strong>
-            <small>Almacén + cuadrillas</small>
-          </article>
+          <article class="metric-card primary"><span>Zona Norte</span><strong>0</strong><small>Total registrado</small></article>
+          <article class="metric-card"><span>Chiclayo</span><strong>0</strong><small>Almacén + cuadrillas</small></article>
+          <article class="metric-card"><span>Piura</span><strong>0</strong><small>Almacén + cuadrillas</small></article>
+          <article class="metric-card"><span>Trujillo</span><strong>0</strong><small>Almacén + cuadrillas</small></article>
         </div>
       </section>
 
-      <section aria-labelledby="modulos-title">
-        <div class="section-heading">
-          <div>
-            <p class="section-label">Módulos</p>
-            <h2 id="modulos-title">Gestión principal</h2>
-          </div>
-        </div>
-
+      <section>
+        <p class="section-label">Módulos</p>
+        <h2>Gestión principal</h2>
         <div class="modules-grid">
-          <button class="module-card" type="button" data-module="STOCK_ACTUAL">
-            <span class="module-icon">▦</span>
-            <span>
-              <strong>Stock actual</strong>
-              <small>Almacenes, cuadrillas y responsables</small>
-            </span>
-          </button>
-
-          <button class="module-card" type="button" data-module="MOVIMIENTOS">
-            <span class="module-icon">⇄</span>
-            <span>
-              <strong>Movimientos</strong>
-              <small>Ingresos, asignaciones y transferencias</small>
-            </span>
-          </button>
-
-          <button class="module-card" type="button" data-module="CARGOS">
-            <span class="module-icon">▤</span>
-            <span>
-              <strong>Cargos</strong>
-              <small>Entregas, firmas y evidencias</small>
-            </span>
-          </button>
-
-          <button class="module-card" type="button" data-module="INVENTARIOS">
-            <span class="module-icon">✓</span>
-            <span>
-              <strong>Inventarios</strong>
-              <small>Conteos físicos y diferencias</small>
-            </span>
-          </button>
-
-          <button class="module-card" type="button" data-module="MANTENIMIENTOS">
-            <span class="module-icon">⚙</span>
-            <span>
-              <strong>Mantenimientos</strong>
-              <small>Preventivo, correctivo y calibración</small>
-            </span>
-          </button>
-
-          <button class="module-card" type="button" data-module="ALERTAS">
-            <span class="module-icon">!</span>
-            <span>
-              <strong>Alertas</strong>
-              <small>Pendientes, daños y vencimientos</small>
-            </span>
-          </button>
+          <button class="module-card" data-module="STOCK ACTUAL"><b>▦</b><span><strong>Stock actual</strong><small>Almacenes, cuadrillas y responsables</small></span></button>
+          <button class="module-card" data-module="MOVIMIENTOS"><b>⇄</b><span><strong>Movimientos</strong><small>Ingresos, asignaciones y transferencias</small></span></button>
+          <button class="module-card" data-module="CARGOS"><b>▤</b><span><strong>Cargos</strong><small>Entregas, firmas y evidencias</small></span></button>
+          <button class="module-card" data-module="INVENTARIOS"><b>✓</b><span><strong>Inventarios</strong><small>Conteos físicos y diferencias</small></span></button>
+          <button class="module-card" data-module="MANTENIMIENTOS"><b>⚙</b><span><strong>Mantenimientos</strong><small>Preventivo, correctivo y calibración</small></span></button>
+          <button class="module-card" data-module="ALERTAS"><b>!</b><span><strong>Alertas</strong><small>Pendientes, daños y vencimientos</small></span></button>
         </div>
       </section>
 
-      <section class="notice-card">
-        <strong>Versión inicial</strong>
-        <p>
-          Esta versión contiene únicamente la estructura visual. Los módulos todavía
-          no registran ni modifican información.
-        </p>
-      </section>
+      <section class="notice-card"><strong>Versión de acceso</strong><p>El inicio y cierre de sesión están habilitados. Los módulos operativos aún no modifican información.</p></section>
     </main>
 
-    <footer>
-      <span>VISUAL HERRAMIENTAS</span>
-      <span id="appVersion"></span>
-    </footer>
+    <footer><span>VISUAL HERRAMIENTAS</span><span id="appVersion"></span></footer>
   </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
+  <div id="toast" class="toast" role="status"></div>
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
 </body>
