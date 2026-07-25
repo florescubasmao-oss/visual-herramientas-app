@@ -197,56 +197,30 @@
 
       button.hidden = !puedeVer;
 
-      if (puedeVer) {
-        button.dataset.puedeRegistrar = String(Boolean(permiso.registrar));
-        button.dataset.puedeEditar = String(Boolean(permiso.editar));
-        button.dataset.puedeAprobar = String(Boolean(permiso.aprobar));
-        button.dataset.puedeAnular = String(Boolean(permiso.anular));
-        button.dataset.puedeDescargar = String(Boolean(permiso.descargar));
-        button.dataset.puedeAdministrar = String(Boolean(permiso.administrar));
-        button.dataset.alcanceSede = permiso.alcanceSede || '';
-        button.dataset.sedeBase = permiso.sedeBase || '';
-      }
+      if (!puedeVer) return;
+
+      button.dataset.puedeRegistrar = String(Boolean(permiso.registrar));
+      button.dataset.puedeEditar = String(Boolean(permiso.editar));
+      button.dataset.puedeAprobar = String(Boolean(permiso.aprobar));
+      button.dataset.puedeAnular = String(Boolean(permiso.anular));
+      button.dataset.puedeDescargar = String(Boolean(permiso.descargar));
+      button.dataset.puedeAdministrar = String(Boolean(permiso.administrar));
+      button.dataset.alcanceSede = permiso.alcanceSede || '';
+      button.dataset.sedeBase = permiso.sedeBase || '';
     });
 
-    actualizarVisibilidadSeccionModulos();
+    actualizarSeccionesModulos();
   }
 
-  function actualizarVisibilidadSeccionModulos() {
-    const botones = Array.from(
-      document.querySelectorAll('[data-module]')
-    );
+  function actualizarSeccionesModulos() {
+    document.querySelectorAll('[data-module-section]').forEach((section) => {
+      const botones = Array.from(
+        section.querySelectorAll('[data-module]')
+      );
 
-    const visibles = botones.filter((button) => !button.hidden);
-    const seccion = botones[0] ? botones[0].closest('section') : null;
-
-    if (!seccion) return;
-
-    let mensaje = seccion.querySelector('[data-empty-modules]');
-
-    if (visibles.length > 0) {
-      if (mensaje) mensaje.remove();
-      return;
-    }
-
-    if (!mensaje) {
-      mensaje = document.createElement('p');
-      mensaje.dataset.emptyModules = 'true';
-      mensaje.textContent =
-        'Tu perfil no tiene módulos habilitados. Comunícate con el administrador.';
-      mensaje.style.padding = '18px';
-      mensaje.style.border = '1px solid var(--border)';
-      mensaje.style.borderRadius = '14px';
-      mensaje.style.background = 'var(--surface)';
-      mensaje.style.color = 'var(--muted)';
-
-      const grid = seccion.querySelector('.modules-grid');
-      if (grid) {
-        grid.insertAdjacentElement('afterend', mensaje);
-      } else {
-        seccion.appendChild(mensaje);
-      }
-    }
+      const tieneVisibles = botones.some((button) => !button.hidden);
+      section.hidden = !tieneVisibles;
+    });
   }
 
   async function cerrarSesion() {
@@ -353,7 +327,7 @@
     return String(valor)
       .replaceAll('_', ' ')
       .toLowerCase()
-      .replace(/\b\p{L}/gu, (letra) => letra.toUpperCase());
+      .replace(/\\b\\p{L}/gu, (letra) => letra.toUpperCase());
   }
 
   function mostrarToast(mensaje) {

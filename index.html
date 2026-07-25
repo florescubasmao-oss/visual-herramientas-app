@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.2.1">
+  <link rel="stylesheet" href="css/styles.css?v=0.3.1">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -65,9 +65,7 @@
         </button>
       </form>
 
-      <p class="login-help">
-        Acceso exclusivo para personal autorizado.
-      </p>
+      <p class="login-help">Acceso exclusivo para personal autorizado.</p>
     </section>
   </main>
 
@@ -154,11 +152,11 @@
         </div>
       </section>
 
-      <section aria-labelledby="modulosTitle">
+      <section class="module-section" data-module-section>
         <div class="section-heading">
           <div>
-            <p class="section-label">Módulos</p>
-            <h2 id="modulosTitle">Gestión principal</h2>
+            <p class="section-label">Operación</p>
+            <h2>Gestión operativa</h2>
           </div>
         </div>
 
@@ -178,6 +176,32 @@
             <span><strong>Cargos</strong><small>Entregas, firmas y evidencias</small></span>
           </button>
 
+          <button class="module-card" type="button" data-module="HERRAMIENTAS">
+            <span class="module-icon">⌁</span>
+            <span><strong>Herramientas</strong><small>Registro individual de equipos y herramientas</small></span>
+          </button>
+
+          <button class="module-card" type="button" data-module="CATALOGO">
+            <span class="module-icon">≡</span>
+            <span><strong>Catálogo</strong><small>Tipos, categorías y unidades de control</small></span>
+          </button>
+
+          <button class="module-card" type="button" data-module="ALMACENES">
+            <span class="module-icon">⌂</span>
+            <span><strong>Almacenes</strong><small>Almacenes de Chiclayo, Piura y Trujillo</small></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="module-section" data-module-section>
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Control</p>
+            <h2>Seguimiento y validación</h2>
+          </div>
+        </div>
+
+        <div class="modules-grid">
           <button class="module-card" type="button" data-module="INVENTARIOS">
             <span class="module-icon">✓</span>
             <span><strong>Inventarios</strong><small>Conteos físicos y diferencias</small></span>
@@ -188,9 +212,50 @@
             <span><strong>Mantenimientos</strong><small>Preventivo, correctivo y calibración</small></span>
           </button>
 
+          <button class="module-card" type="button" data-module="BAJAS">
+            <span class="module-icon">×</span>
+            <span><strong>Bajas</strong><small>Solicitudes, aprobación y retiro definitivo</small></span>
+          </button>
+
           <button class="module-card" type="button" data-module="ALERTAS">
             <span class="module-icon">!</span>
             <span><strong>Alertas</strong><small>Pendientes, daños y vencimientos</small></span>
+          </button>
+
+          <button class="module-card" type="button" data-module="REPORTES">
+            <span class="module-icon">▥</span>
+            <span><strong>Reportes</strong><small>Consultas, filtros y exportación</small></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="module-section" data-module-section>
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Organización</p>
+            <h2>Personal y configuración</h2>
+          </div>
+        </div>
+
+        <div class="modules-grid">
+          <button class="module-card" type="button" data-module="CUADRILLAS">
+            <span class="module-icon">◫</span>
+            <span><strong>Cuadrillas</strong><small>Técnicos, sedes, plataformas y responsables</small></span>
+          </button>
+
+          <button class="module-card" type="button" data-module="SUPERVISORES">
+            <span class="module-icon">◎</span>
+            <span><strong>Supervisores</strong><small>Responsables operativos por sede</small></span>
+          </button>
+
+          <button class="module-card" type="button" data-module="USUARIOS">
+            <span class="module-icon">♙</span>
+            <span><strong>Usuarios</strong><small>Accesos, perfiles y estado</small></span>
+          </button>
+
+          <button class="module-card" type="button" data-module="ADMINISTRACION">
+            <span class="module-icon">⚙</span>
+            <span><strong>Administración</strong><small>Módulos, permisos y configuración general</small></span>
           </button>
         </div>
       </section>
@@ -204,7 +269,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.2.1"></script>
-  <script src="js/app.js?v=0.2.1"></script>
+  <script src="js/config.js?v=0.3.1"></script>
+  <script src="js/app.js?v=0.3.1"></script>
 </body>
 </html>

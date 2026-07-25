@@ -254,6 +254,11 @@ h2 {
 
 .section-heading { margin-bottom: 14px; }
 
+.module-section {
+  display: grid;
+  gap: 0;
+}
+
 .metrics-grid,
 .modules-grid {
   display: grid;
@@ -288,7 +293,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 105px;
+  min-height: 112px;
   padding: 18px;
   text-align: left;
   border: 1px solid var(--border);
@@ -296,6 +301,12 @@ h2 {
   background: var(--surface);
   box-shadow: var(--shadow);
   cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.module-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
 }
 
 .module-card strong,
@@ -304,6 +315,7 @@ h2 {
 .module-card small {
   margin-top: 6px;
   color: var(--muted);
+  line-height: 1.4;
 }
 
 .module-icon {
