@@ -327,7 +327,10 @@
     return String(valor)
       .replaceAll('_', ' ')
       .toLowerCase()
-      .replace(/\\b\\p{L}/gu, (letra) => letra.toUpperCase());
+      .replace(
+        /(^|\s)([a-záéíóúñ])/g,
+        (texto, espacio, letra) => espacio + letra.toUpperCase()
+      );
   }
 
   function mostrarToast(mensaje) {
