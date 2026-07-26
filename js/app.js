@@ -577,13 +577,13 @@
     catalogosSupervisores.sedes =
       sedes;
 
-    llenarSelectCatalogo(
+    llenarSelectConTodos(
       supervisorSiteFilter,
       sedes,
       'Todas'
     );
 
-    llenarSelectCatalogo(
+    llenarSelectConTodos(
       supervisorPlatformFilter,
       (
         Array.isArray(
