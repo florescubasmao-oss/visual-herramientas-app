@@ -537,22 +537,94 @@
   }
 
   function actualizarCatalogosSupervisores() {
+    const sedesApi =
+      Array.isArray(
+        catalogosSupervisores.sedes
+      )
+        ? catalogosSupervisores.sedes
+            .map((sede) =>
+              String(sede || '')
+                .trim()
+                .toUpperCase()
+            )
+            .filter(Boolean)
+        : [];
+
+    const sedes =
+      sedesApi.length
+        ? sedesApi
+        : obtenerSedesSupervisorRespaldo();
+
+    catalogosSupervisores.sedes =
+      sedes;
+
     llenarSelectCatalogo(
       supervisorSiteFilter,
-      catalogosSupervisores.sedes || [],
+      sedes,
       'Todas'
     );
 
     llenarSelectCatalogo(
       supervisorPlatformFilter,
-      catalogosSupervisores.plataformas || [],
+      catalogosSupervisores.plataformas || [
+        'SGI',
+        'SGA',
+        'TRASLADO'
+      ],
       'Todas'
     );
 
     llenarSelectFormulario(
       formSupervisorSite,
-      catalogosSupervisores.sedes || []
+      sedes
     );
+  }
+
+  function obtenerSedesSupervisorRespaldo() {
+    const perfil =
+      String(
+        auth &&
+        auth.usuario
+          ? auth.usuario.perfil
+          : ''
+      )
+        .trim()
+        .toUpperCase();
+
+    const sedeBase =
+      String(
+        auth &&
+        auth.usuario
+          ? auth.usuario.sedeBase
+          : ''
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      perfil === 'ADMINISTRADOR' ||
+      sedeBase === 'ZONA_NORTE'
+    ) {
+      return [
+        'CHICLAYO',
+        'PIURA',
+        'TRUJILLO'
+      ];
+    }
+
+    if (
+      [
+        'CHICLAYO',
+        'PIURA',
+        'TRUJILLO'
+      ].includes(sedeBase)
+    ) {
+      return [
+        sedeBase
+      ];
+    }
+
+    return [];
   }
 
   function renderizarSupervisores() {
