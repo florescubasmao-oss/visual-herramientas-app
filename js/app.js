@@ -1294,7 +1294,13 @@
     await cargarCuadrillas();
   }
 
-  async function cargarCuadrillas() {
+  async function cargarCuadrillas(
+    opciones = {}
+  ) {
+    const preservarEnError =
+      Boolean(
+        opciones.preservarEnError
+      );
     crewsLoading.hidden = false;
     crewsLoading.textContent = 'Cargando cuadrillas…';
     crewsTable.hidden = true;
@@ -1334,12 +1340,32 @@
 
     } catch (error) {
       console.error(error);
+
+      if (
+        preservarEnError &&
+        cuadrillas.length
+      ) {
+        crewsLoading.hidden = true;
+        renderizarCuadrillas();
+
+        mostrarToast(
+          'Registro guardado. La actualización automática se reintentará al pulsar Actualizar.'
+        );
+
+        return false;
+      }
+
       crewsLoading.hidden = false;
       crewsLoading.textContent = error.message;
       crewsTable.hidden = true;
+
+      return false;
+
     } finally {
       refreshCrewsButton.disabled = false;
     }
+
+    return true;
   }
 
   function actualizarCatalogosCuadrillas() {
@@ -1660,7 +1686,7 @@
       dniTecnico2: formCrewDni2.value.trim(),
       cargoTecnico2: formCrewRole2.value,
       idSupervisor: formCrewSupervisor.value,
-      estado: formCrewStatus.value,
+      estado: formCrewStatus.value || 'ACTIVO',
       observaciones: formCrewNotes.value.trim()
     };
 
@@ -1671,7 +1697,8 @@
       !payload.tecnico1 ||
       !payload.dniTecnico1
     ) {
-      crewFormMessage.textContent = 'Completa los campos obligatorios.';
+      crewFormMessage.textContent =
+        'Completa los campos obligatorios.';
       return;
     }
 
@@ -1679,26 +1706,218 @@
     saveCrewButton.textContent = 'Guardando…';
 
     try {
-      const respuesta = await solicitarApi(payload);
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
 
       if (!respuesta.correcto) {
         throw new Error(
-          respuesta.mensaje || 'No se pudo guardar la cuadrilla.'
+          respuesta.mensaje ||
+          'No se pudo guardar la cuadrilla.'
+        );
+      }
+
+      if (respuesta.cuadrilla) {
+        incorporarCuadrillaLocal(
+          respuesta.cuadrilla
         );
       }
 
       cerrarFormularioCuadrilla();
-      mostrarToast(respuesta.mensaje);
-      await cargarCuadrillas();
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarCuadrillas({
+        preservarEnError: true
+      });
 
     } catch (error) {
-      crewFormMessage.textContent = error.message;
+      console.error(error);
+
+      const encontrada =
+        await verificarCuadrillaGuardada(
+          payload
+        );
+
+      if (encontrada) {
+        cerrarFormularioCuadrilla();
+
+        mostrarToast(
+          'La cuadrilla quedó registrada y fue verificada correctamente.'
+        );
+
+        return;
+      }
+
+      crewFormMessage.textContent =
+        error.message;
+
     } finally {
       saveCrewButton.disabled = false;
-      saveCrewButton.textContent = formCrewId.value
-        ? 'Guardar cambios'
-        : 'Registrar cuadrilla';
+
+      saveCrewButton.textContent =
+        formCrewId.value
+          ? 'Guardar cambios'
+          : 'Registrar cuadrilla';
     }
+  }
+
+  function incorporarCuadrillaLocal(
+    cuadrilla
+  ) {
+    const id =
+      String(
+        cuadrilla.idCuadrilla || ''
+      ).trim();
+
+    const codigo =
+      String(
+        cuadrilla.codigoCuadrilla || ''
+      )
+        .trim()
+        .toUpperCase();
+
+    const indice =
+      cuadrillas.findIndex(
+        item =>
+          (
+            id &&
+            String(
+              item.idCuadrilla || ''
+            ) === id
+          ) ||
+          (
+            codigo &&
+            String(
+              item.codigoCuadrilla || ''
+            )
+              .trim()
+              .toUpperCase() ===
+              codigo
+          )
+      );
+
+    const registro = {
+      ...cuadrilla,
+      estado:
+        String(
+          cuadrilla.estado ||
+          'ACTIVO'
+        ).toUpperCase()
+    };
+
+    if (indice === -1) {
+      cuadrillas.unshift(
+        registro
+      );
+    } else {
+      cuadrillas[indice] = {
+        ...cuadrillas[indice],
+        ...registro
+      };
+    }
+
+    renderizarCuadrillas();
+  }
+
+  async function verificarCuadrillaGuardada(
+    payload
+  ) {
+    try {
+      await esperar(
+        700
+      );
+
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_cuadrillas',
+          token:
+            auth.token
+        });
+
+      if (
+        !respuesta.correcto ||
+        !Array.isArray(
+          respuesta.cuadrillas
+        )
+      ) {
+        return false;
+      }
+
+      cuadrillas =
+        respuesta.cuadrillas;
+
+      catalogosCuadrillas =
+        respuesta.catalogos ||
+        catalogosCuadrillas;
+
+      puedeRegistrarCuadrillas =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarCuadrillas =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      actualizarCatalogosCuadrillas();
+      renderizarCuadrillas();
+
+      const idBuscado =
+        String(
+          payload.idCuadrilla || ''
+        ).trim();
+
+      const codigoBuscado =
+        String(
+          payload.codigoCuadrilla || ''
+        )
+          .trim()
+          .toUpperCase();
+
+      return cuadrillas.some(
+        cuadrilla =>
+          (
+            idBuscado &&
+            String(
+              cuadrilla.idCuadrilla || ''
+            ) === idBuscado
+          ) ||
+          (
+            codigoBuscado &&
+            String(
+              cuadrilla.codigoCuadrilla || ''
+            )
+              .trim()
+              .toUpperCase() ===
+              codigoBuscado
+          )
+      );
+
+    } catch (error) {
+      console.warn(
+        'No se pudo verificar automáticamente la cuadrilla.',
+        error
+      );
+
+      return false;
+    }
+  }
+
+  function esperar(
+    milisegundos
+  ) {
+    return new Promise(
+      resolver =>
+        window.setTimeout(
+          resolver,
+          milisegundos
+        )
+    );
   }
 
   async function cambiarEstadoCuadrilla(cuadrilla, estado) {
