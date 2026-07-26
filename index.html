@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.5.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.5.1">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -260,6 +260,98 @@
     </main>
 
 
+
+
+    <main id="supervisorsView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button id="backSupervisorsButton" class="secondary-button compact-button" type="button">
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Organización</p>
+            <h2>Gestión de supervisores</h2>
+            <p class="subtitle">Supervisores, sedes, plataformas y cuadrillas asignadas.</p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button id="newSupervisorButton" class="primary-button toolbar-button" type="button" hidden>
+            + Nuevo supervisor
+          </button>
+
+          <button id="refreshSupervisorsButton" class="secondary-button" type="button">
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="filters-card" aria-label="Filtros de supervisores">
+        <div class="supervisor-filters-grid">
+          <div class="field-group">
+            <label for="supervisorSearch">Buscar</label>
+            <input
+              id="supervisorSearch"
+              type="search"
+              placeholder="Nombre, DNI, correo o teléfono"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="supervisorSiteFilter">Sede</label>
+            <select id="supervisorSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="supervisorPlatformFilter">Plataforma</label>
+            <select id="supervisorPlatformFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="supervisorStatusFilter">Estado</label>
+            <select id="supervisorStatusFilter">
+              <option value="">Todos</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="supervisorsLoading" class="loading-state">
+          Selecciona Actualizar para cargar los supervisores.
+        </div>
+
+        <div class="table-scroll">
+          <table id="supervisorsTable" class="data-table supervisors-table" hidden>
+            <thead>
+              <tr>
+                <th>Supervisor</th>
+                <th>Sede</th>
+                <th>Plataformas</th>
+                <th>Contacto</th>
+                <th>Cuadrillas</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="supervisorsTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="supervisorsEmpty" class="empty-state" hidden>
+          No se encontraron supervisores con los filtros aplicados.
+        </p>
+      </section>
+    </main>
+
     <main id="crewsView" class="main-content" hidden>
       <section class="page-toolbar">
         <div class="page-toolbar-title">
@@ -442,6 +534,127 @@
 
 
 
+
+
+  <div id="supervisorModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="supervisorModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Gestión de supervisores</p>
+          <h2 id="supervisorModalTitle">Nuevo supervisor</h2>
+        </div>
+
+        <button
+          id="closeSupervisorModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="supervisorForm" class="user-form">
+        <input id="formSupervisorId" type="hidden">
+
+        <div class="form-grid">
+          <div class="field-group field-span-2">
+            <label for="formSupervisorName">Nombres y apellidos</label>
+            <input id="formSupervisorName" type="text" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formSupervisorDni">DNI</label>
+            <input
+              id="formSupervisorDni"
+              type="text"
+              inputmode="numeric"
+              required
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formSupervisorSite">Sede</label>
+            <select id="formSupervisorSite" required></select>
+          </div>
+
+          <div class="field-group field-span-2">
+            <label>Plataformas asignadas</label>
+
+            <div id="supervisorPlatformsGroup" class="checkbox-group">
+              <label class="checkbox-option">
+                <input type="checkbox" name="supervisorPlatform" value="SGI">
+                <span>SGI</span>
+              </label>
+
+              <label class="checkbox-option">
+                <input type="checkbox" name="supervisorPlatform" value="SGA">
+                <span>SGA</span>
+              </label>
+
+              <label class="checkbox-option">
+                <input type="checkbox" name="supervisorPlatform" value="TRASLADO">
+                <span>Traslado</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="formSupervisorPhone">Teléfono</label>
+            <input
+              id="formSupervisorPhone"
+              type="tel"
+              inputmode="tel"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formSupervisorEmail">Correo</label>
+            <input id="formSupervisorEmail" type="email">
+          </div>
+
+          <div class="field-group">
+            <label for="formSupervisorStatus">Estado</label>
+            <select id="formSupervisorStatus" required>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formSupervisorNotes">Observaciones</label>
+            <textarea id="formSupervisorNotes" rows="3"></textarea>
+          </div>
+        </div>
+
+        <p id="supervisorFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelSupervisorFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveSupervisorButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Guardar supervisor
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="crewModal" class="modal-backdrop" hidden>
     <section class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="crewModalTitle">
       <header class="modal-header">
@@ -621,7 +834,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.5.0"></script>
-  <script src="js/app.js?v=0.5.0"></script>
+  <script src="js/config.js?v=0.5.1"></script>
+  <script src="js/app.js?v=0.5.1"></script>
 </body>
 </html>

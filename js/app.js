@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const supervisorsView = document.getElementById('supervisorsView');
   const crewsView = document.getElementById('crewsView');
   const usersView = document.getElementById('usersView');
 
@@ -24,6 +25,35 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backSupervisorsButton = document.getElementById('backSupervisorsButton');
+  const newSupervisorButton = document.getElementById('newSupervisorButton');
+  const refreshSupervisorsButton = document.getElementById('refreshSupervisorsButton');
+  const supervisorSearch = document.getElementById('supervisorSearch');
+  const supervisorSiteFilter = document.getElementById('supervisorSiteFilter');
+  const supervisorPlatformFilter = document.getElementById('supervisorPlatformFilter');
+  const supervisorStatusFilter = document.getElementById('supervisorStatusFilter');
+  const supervisorsLoading = document.getElementById('supervisorsLoading');
+  const supervisorsTable = document.getElementById('supervisorsTable');
+  const supervisorsTableBody = document.getElementById('supervisorsTableBody');
+  const supervisorsEmpty = document.getElementById('supervisorsEmpty');
+
+  const supervisorModal = document.getElementById('supervisorModal');
+  const closeSupervisorModalButton = document.getElementById('closeSupervisorModalButton');
+  const cancelSupervisorFormButton = document.getElementById('cancelSupervisorFormButton');
+  const supervisorForm = document.getElementById('supervisorForm');
+  const supervisorModalTitle = document.getElementById('supervisorModalTitle');
+  const formSupervisorId = document.getElementById('formSupervisorId');
+  const formSupervisorName = document.getElementById('formSupervisorName');
+  const formSupervisorDni = document.getElementById('formSupervisorDni');
+  const formSupervisorSite = document.getElementById('formSupervisorSite');
+  const supervisorPlatformsGroup = document.getElementById('supervisorPlatformsGroup');
+  const formSupervisorPhone = document.getElementById('formSupervisorPhone');
+  const formSupervisorEmail = document.getElementById('formSupervisorEmail');
+  const formSupervisorStatus = document.getElementById('formSupervisorStatus');
+  const formSupervisorNotes = document.getElementById('formSupervisorNotes');
+  const supervisorFormMessage = document.getElementById('supervisorFormMessage');
+  const saveSupervisorButton = document.getElementById('saveSupervisorButton');
 
   const backCrewsButton = document.getElementById('backCrewsButton');
   const newCrewButton = document.getElementById('newCrewButton');
@@ -92,6 +122,14 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let supervisores = [];
+  let puedeRegistrarSupervisores = false;
+  let puedeEditarSupervisores = false;
+  let catalogosSupervisores = {
+    sedes: [],
+    plataformas: [],
+    estados: []
+  };
   let cuadrillas = [];
   let puedeRegistrarCuadrillas = false;
   let puedeEditarCuadrillas = false;
@@ -122,6 +160,28 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backSupervisorsButton.addEventListener('click', mostrarDashboard);
+    newSupervisorButton.addEventListener('click', abrirNuevoSupervisor);
+    refreshSupervisorsButton.addEventListener('click', cargarSupervisores);
+    closeSupervisorModalButton.addEventListener('click', cerrarFormularioSupervisor);
+    cancelSupervisorFormButton.addEventListener('click', cerrarFormularioSupervisor);
+    supervisorForm.addEventListener('submit', guardarSupervisor);
+    supervisorModal.addEventListener('click', (event) => {
+      if (event.target === supervisorModal) {
+        cerrarFormularioSupervisor();
+      }
+    });
+
+    [
+      supervisorSearch,
+      supervisorSiteFilter,
+      supervisorPlatformFilter,
+      supervisorStatusFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarSupervisores);
+      control.addEventListener('change', renderizarSupervisores);
+    });
+
     backCrewsButton.addEventListener('click', mostrarDashboard);
     newCrewButton.addEventListener('click', abrirNuevaCuadrilla);
     refreshCrewsButton.addEventListener('click', cargarCuadrillas);
@@ -392,6 +452,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'SUPERVISORES') {
+      abrirSupervisores();
+      return;
+    }
+
     if (modulo === 'CUADRILLAS') {
       abrirCuadrillas();
       return;
@@ -407,8 +472,676 @@
     );
   }
 
+
+  async function abrirSupervisores() {
+    dashboardView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    supervisorsView.hidden = false;
+
+    await cargarSupervisores();
+  }
+
+  async function cargarSupervisores() {
+    supervisorsLoading.hidden = false;
+    supervisorsLoading.textContent = 'Cargando supervisores…';
+    supervisorsTable.hidden = true;
+    supervisorsEmpty.hidden = true;
+    refreshSupervisorsButton.disabled = true;
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'listar_supervisores',
+        token: auth.token
+      });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar los supervisores.'
+        );
+      }
+
+      supervisores = Array.isArray(respuesta.supervisores)
+        ? respuesta.supervisores
+        : [];
+
+      puedeRegistrarSupervisores =
+        Boolean(respuesta.puedeRegistrar);
+
+      puedeEditarSupervisores =
+        Boolean(respuesta.puedeEditar);
+
+      catalogosSupervisores =
+        respuesta.catalogos || {
+          sedes: [],
+          plataformas: [],
+          estados: []
+        };
+
+      newSupervisorButton.hidden =
+        !puedeRegistrarSupervisores;
+
+      actualizarCatalogosSupervisores();
+      renderizarSupervisores();
+      supervisorsLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      supervisorsLoading.hidden = false;
+      supervisorsLoading.textContent = error.message;
+      supervisorsTable.hidden = true;
+    } finally {
+      refreshSupervisorsButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosSupervisores() {
+    llenarSelectCatalogo(
+      supervisorSiteFilter,
+      catalogosSupervisores.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectCatalogo(
+      supervisorPlatformFilter,
+      catalogosSupervisores.plataformas || [],
+      'Todas'
+    );
+
+    llenarSelectFormulario(
+      formSupervisorSite,
+      catalogosSupervisores.sedes || []
+    );
+  }
+
+  function renderizarSupervisores() {
+    const texto =
+      normalizarBusqueda(
+        supervisorSearch.value
+      );
+
+    const sede =
+      String(
+        supervisorSiteFilter.value || ''
+      ).toUpperCase();
+
+    const plataforma =
+      String(
+        supervisorPlatformFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        supervisorStatusFilter.value || ''
+      ).toUpperCase();
+
+    const filtrados =
+      supervisores.filter(
+        (supervisor) => {
+          const coincideTexto =
+            !texto ||
+            normalizarBusqueda([
+              supervisor.nombresApellidos,
+              supervisor.dni,
+              supervisor.correo,
+              supervisor.telefono
+            ].join(' ')).includes(texto);
+
+          const coincideSede =
+            !sede ||
+            String(
+              supervisor.sede || ''
+            ).toUpperCase() === sede;
+
+          const plataformas =
+            Array.isArray(
+              supervisor.plataformas
+            )
+              ? supervisor.plataformas
+              : [];
+
+          const coincidePlataforma =
+            !plataforma ||
+            plataformas
+              .map(item =>
+                String(item)
+                  .toUpperCase()
+              )
+              .includes(
+                plataforma
+              );
+
+          const coincideEstado =
+            !estado ||
+            String(
+              supervisor.estado || ''
+            ).toUpperCase() === estado;
+
+          return (
+            coincideTexto &&
+            coincideSede &&
+            coincidePlataforma &&
+            coincideEstado
+          );
+        }
+      );
+
+    supervisorsTableBody.innerHTML = '';
+
+    filtrados.forEach(
+      (supervisor) => {
+        supervisorsTableBody.appendChild(
+          crearFilaSupervisor(
+            supervisor
+          )
+        );
+      }
+    );
+
+    supervisorsLoading.hidden = true;
+    supervisorsTable.hidden =
+      filtrados.length === 0;
+    supervisorsEmpty.hidden =
+      filtrados.length !== 0;
+  }
+
+  function crearFilaSupervisor(supervisor) {
+    const fila =
+      document.createElement('tr');
+
+    const celdaSupervisor =
+      document.createElement('td');
+
+    celdaSupervisor.className =
+      'user-cell';
+
+    celdaSupervisor.innerHTML =
+      `<strong>${escaparHtml(
+        supervisor.nombresApellidos ||
+        'Sin nombre'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        supervisor.dni ||
+        'Sin DNI'
+      )} · ${escaparHtml(
+        supervisor.idSupervisor ||
+        ''
+      )}</small>`;
+
+    fila.appendChild(
+      celdaSupervisor
+    );
+
+    fila.appendChild(
+      crearCelda(
+        formatearTexto(
+          supervisor.sede
+        )
+      )
+    );
+
+    const celdaPlataformas =
+      document.createElement('td');
+
+    const contenedorPlataformas =
+      document.createElement('div');
+
+    contenedorPlataformas.className =
+      'platform-tags';
+
+    const plataformas =
+      Array.isArray(
+        supervisor.plataformas
+      )
+        ? supervisor.plataformas
+        : [];
+
+    if (!plataformas.length) {
+      const etiqueta =
+        document.createElement('span');
+
+      etiqueta.className =
+        'platform-tag';
+
+      etiqueta.textContent =
+        'Sin asignar';
+
+      contenedorPlataformas
+        .appendChild(etiqueta);
+    }
+
+    plataformas.forEach(
+      plataforma => {
+        const etiqueta =
+          document.createElement('span');
+
+        etiqueta.className =
+          'platform-tag';
+
+        etiqueta.textContent =
+          formatearTexto(
+            plataforma
+          );
+
+        contenedorPlataformas
+          .appendChild(etiqueta);
+      }
+    );
+
+    celdaPlataformas.appendChild(
+      contenedorPlataformas
+    );
+
+    fila.appendChild(
+      celdaPlataformas
+    );
+
+    const celdaContacto =
+      document.createElement('td');
+
+    celdaContacto.className =
+      'contact-cell';
+
+    const correoSeguro =
+      escaparHtml(
+        supervisor.correo ||
+        'Sin correo'
+      );
+
+    const telefonoSeguro =
+      escaparHtml(
+        supervisor.telefono ||
+        'Sin teléfono'
+      );
+
+    celdaContacto.innerHTML =
+      `<strong>${correoSeguro}</strong>` +
+      `<small>${telefonoSeguro}</small>`;
+
+    fila.appendChild(
+      celdaContacto
+    );
+
+    const celdaAsignadas =
+      document.createElement('td');
+
+    celdaAsignadas.className =
+      'assigned-cell';
+
+    celdaAsignadas.innerHTML =
+      `<strong>${Number(
+        supervisor.cuadrillasActivas || 0
+      )} activas</strong>` +
+      `<small>${Number(
+        supervisor.cuadrillasAsignadas || 0
+      )} asignadas</small>`;
+
+    fila.appendChild(
+      celdaAsignadas
+    );
+
+    const celdaEstado =
+      document.createElement('td');
+
+    const estado =
+      String(
+        supervisor.estado || ''
+      ).toUpperCase();
+
+    const insignia =
+      document.createElement('span');
+
+    insignia.className =
+      'status-badge ' +
+      (
+        estado === 'ACTIVO'
+          ? 'status-active'
+          : 'status-inactive'
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        estado ||
+        'Sin estado'
+      );
+
+    celdaEstado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      celdaEstado
+    );
+
+    const celdaAcciones =
+      document.createElement('td');
+
+    celdaAcciones.className =
+      'actions-cell';
+
+    if (puedeEditarSupervisores) {
+      const botonEditar =
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarSupervisor(
+              supervisor
+            )
+        );
+
+      const nuevoEstado =
+        estado === 'ACTIVO'
+          ? 'INACTIVO'
+          : 'ACTIVO';
+
+      const botonEstado =
+        crearBotonAccion(
+          nuevoEstado === 'ACTIVO'
+            ? 'Activar'
+            : 'Inactivar',
+          () =>
+            cambiarEstadoSupervisor(
+              supervisor,
+              nuevoEstado
+            )
+        );
+
+      celdaAcciones.appendChild(
+        botonEditar
+      );
+
+      celdaAcciones.appendChild(
+        botonEstado
+      );
+    } else {
+      celdaAcciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      celdaAcciones
+    );
+
+    return fila;
+  }
+
+  function abrirNuevoSupervisor() {
+    supervisorForm.reset();
+    formSupervisorId.value = '';
+    formSupervisorStatus.value = 'ACTIVO';
+    limpiarPlataformasSupervisor();
+    supervisorModalTitle.textContent =
+      'Nuevo supervisor';
+    saveSupervisorButton.textContent =
+      'Registrar supervisor';
+    supervisorFormMessage.textContent = '';
+
+    if (
+      formSupervisorSite.options.length
+    ) {
+      formSupervisorSite.selectedIndex = 0;
+    }
+
+    supervisorModal.hidden = false;
+    formSupervisorName.focus();
+  }
+
+  function abrirEditarSupervisor(
+    supervisor
+  ) {
+    formSupervisorId.value =
+      supervisor.idSupervisor || '';
+
+    formSupervisorName.value =
+      supervisor.nombresApellidos || '';
+
+    formSupervisorDni.value =
+      supervisor.dni || '';
+
+    formSupervisorSite.value =
+      String(
+        supervisor.sede || ''
+      ).toUpperCase();
+
+    formSupervisorPhone.value =
+      supervisor.telefono || '';
+
+    formSupervisorEmail.value =
+      supervisor.correo || '';
+
+    formSupervisorStatus.value =
+      String(
+        supervisor.estado ||
+        'ACTIVO'
+      ).toUpperCase();
+
+    formSupervisorNotes.value =
+      supervisor.observaciones || '';
+
+    seleccionarPlataformasSupervisor(
+      supervisor.plataformas || []
+    );
+
+    supervisorModalTitle.textContent =
+      'Editar supervisor';
+
+    saveSupervisorButton.textContent =
+      'Guardar cambios';
+
+    supervisorFormMessage.textContent =
+      '';
+
+    supervisorModal.hidden = false;
+    formSupervisorName.focus();
+  }
+
+  function obtenerPlataformasSupervisorSeleccionadas() {
+    return Array.from(
+      supervisorPlatformsGroup
+        .querySelectorAll(
+          'input[name="supervisorPlatform"]:checked'
+        )
+    ).map(
+      input =>
+        String(
+          input.value || ''
+        ).toUpperCase()
+    );
+  }
+
+  function limpiarPlataformasSupervisor() {
+    supervisorPlatformsGroup
+      .querySelectorAll(
+        'input[name="supervisorPlatform"]'
+      )
+      .forEach(
+        input => {
+          input.checked = false;
+        }
+      );
+  }
+
+  function seleccionarPlataformasSupervisor(
+    plataformas
+  ) {
+    const seleccionadas =
+      new Set(
+        (
+          Array.isArray(plataformas)
+            ? plataformas
+            : []
+        ).map(
+          item =>
+            String(item)
+              .toUpperCase()
+        )
+      );
+
+    supervisorPlatformsGroup
+      .querySelectorAll(
+        'input[name="supervisorPlatform"]'
+      )
+      .forEach(
+        input => {
+          input.checked =
+            seleccionadas.has(
+              String(
+                input.value || ''
+              ).toUpperCase()
+            );
+        }
+      );
+  }
+
+  function cerrarFormularioSupervisor() {
+    supervisorModal.hidden = true;
+    supervisorFormMessage.textContent = '';
+  }
+
+  async function guardarSupervisor(event) {
+    event.preventDefault();
+    supervisorFormMessage.textContent = '';
+
+    const plataformas =
+      obtenerPlataformasSupervisorSeleccionadas();
+
+    const payload = {
+      accion:
+        'guardar_supervisor',
+      token:
+        auth.token,
+      idSupervisor:
+        formSupervisorId.value.trim(),
+      nombresApellidos:
+        formSupervisorName.value.trim(),
+      dni:
+        formSupervisorDni.value.trim(),
+      sede:
+        formSupervisorSite.value,
+      plataformas:
+        plataformas,
+      telefono:
+        formSupervisorPhone.value.trim(),
+      correo:
+        formSupervisorEmail.value
+          .trim()
+          .toLowerCase(),
+      estado:
+        formSupervisorStatus.value,
+      observaciones:
+        formSupervisorNotes.value.trim()
+    };
+
+    if (
+      !payload.nombresApellidos ||
+      !payload.dni ||
+      !payload.sede
+    ) {
+      supervisorFormMessage.textContent =
+        'Completa los campos obligatorios.';
+      return;
+    }
+
+    if (!plataformas.length) {
+      supervisorFormMessage.textContent =
+        'Selecciona por lo menos una plataforma.';
+      return;
+    }
+
+    saveSupervisorButton.disabled = true;
+    saveSupervisorButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar el supervisor.'
+        );
+      }
+
+      cerrarFormularioSupervisor();
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarSupervisores();
+
+    } catch (error) {
+      supervisorFormMessage.textContent =
+        error.message;
+    } finally {
+      saveSupervisorButton.disabled =
+        false;
+
+      saveSupervisorButton.textContent =
+        formSupervisorId.value
+          ? 'Guardar cambios'
+          : 'Registrar supervisor';
+    }
+  }
+
+  async function cambiarEstadoSupervisor(
+    supervisor,
+    estado
+  ) {
+    const accion =
+      estado === 'ACTIVO'
+        ? 'activar'
+        : 'inactivar';
+
+    const confirmado =
+      window.confirm(
+        `¿Deseas ${accion} al supervisor ` +
+        `${supervisor.nombresApellidos}?`
+      );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_supervisor',
+          token:
+            auth.token,
+          idSupervisor:
+            supervisor.idSupervisor,
+          estado:
+            estado
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarSupervisores();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    supervisorsView.hidden = true;
     usersView.hidden = true;
     crewsView.hidden = false;
     await cargarCuadrillas();
@@ -710,18 +1443,39 @@
       .filter((supervisor) => {
         const mismaSede = !sede ||
           String(supervisor.sede || '').toUpperCase() === sede;
-        const plataformaSupervisor = String(supervisor.plataforma || '').toUpperCase();
-        const compatible = !plataformaSupervisor ||
-          plataformaSupervisor === 'TODAS' ||
+        const plataformasSupervisor = Array.isArray(supervisor.plataformas)
+          ? supervisor.plataformas.map((item) => String(item).toUpperCase())
+          : String(supervisor.plataforma || '')
+              .split(',')
+              .map((item) => item.trim().toUpperCase())
+              .filter(Boolean);
+
+        const supervisorActivo =
+          String(supervisor.estado || 'ACTIVO').toUpperCase() === 'ACTIVO';
+
+        const esSeleccionActual =
+          String(supervisor.idSupervisor || '') === String(actual || '');
+
+        const compatible =
           !plataforma ||
-          plataformaSupervisor === plataforma;
-        return mismaSede && compatible;
+          plataformasSupervisor.includes(plataforma);
+
+        return (
+          mismaSede &&
+          compatible &&
+          (supervisorActivo || esSeleccionActual)
+        );
       })
       .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'))
       .forEach((supervisor) => {
         const option = document.createElement('option');
         option.value = supervisor.idSupervisor;
-        option.textContent = `${supervisor.nombre} · ${formatearTexto(supervisor.plataforma || 'General')}`;
+        const plataformasTexto = Array.isArray(supervisor.plataformas)
+          ? supervisor.plataformas.join(', ')
+          : supervisor.plataforma || 'Sin plataforma';
+
+        option.textContent =
+          `${supervisor.nombre} · ${formatearTexto(plataformasTexto)}`;
         formCrewSupervisor.appendChild(option);
       });
 
@@ -832,12 +1586,14 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    supervisorsView.hidden = true;
     crewsView.hidden = true;
     usersView.hidden = false;
     await cargarUsuarios();
   }
 
   function mostrarDashboard() {
+    supervisorsView.hidden = true;
     crewsView.hidden = true;
     usersView.hidden = true;
     dashboardView.hidden = false;
@@ -1355,6 +2111,7 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    supervisores = [];
     cuadrillas = [];
     usuarios = [];
   }
