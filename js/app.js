@@ -537,6 +537,12 @@
   }
 
   function actualizarCatalogosSupervisores() {
+    const sedesBase = [
+      'CHICLAYO',
+      'PIURA',
+      'TRUJILLO'
+    ];
+
     const sedesApi =
       Array.isArray(
         catalogosSupervisores.sedes
@@ -550,10 +556,23 @@
             .filter(Boolean)
         : [];
 
+    const sedesPermitidas =
+      obtenerSedesSupervisorRespaldo();
+
+    const sedesCombinadas = [
+      ...new Set([
+        ...sedesBase,
+        ...sedesApi
+      ])
+    ];
+
     const sedes =
-      sedesApi.length
-        ? sedesApi
-        : obtenerSedesSupervisorRespaldo();
+      sedesPermitidas.length === 1
+        ? sedesCombinadas.filter(
+            (sede) =>
+              sede === sedesPermitidas[0]
+          )
+        : sedesCombinadas;
 
     catalogosSupervisores.sedes =
       sedes;
@@ -566,18 +585,66 @@
 
     llenarSelectCatalogo(
       supervisorPlatformFilter,
-      catalogosSupervisores.plataformas || [
-        'SGI',
-        'SGA',
-        'TRASLADO'
-      ],
+      (
+        Array.isArray(
+          catalogosSupervisores.plataformas
+        ) &&
+        catalogosSupervisores.plataformas.length
+      )
+        ? catalogosSupervisores.plataformas
+        : [
+            'SGI',
+            'SGA',
+            'TRASLADO'
+          ],
       'Todas'
     );
 
-    llenarSelectFormulario(
-      formSupervisorSite,
+    asegurarSedesFormularioSupervisor(
       sedes
     );
+  }
+
+  function asegurarSedesFormularioSupervisor(
+    sedes
+  ) {
+    const valorActual =
+      String(
+        formSupervisorSite.value || ''
+      ).toUpperCase();
+
+    const lista =
+      Array.isArray(sedes) &&
+      sedes.length
+        ? sedes
+        : [
+            'CHICLAYO',
+            'PIURA',
+            'TRUJILLO'
+          ];
+
+    llenarSelectFormulario(
+      formSupervisorSite,
+      lista
+    );
+
+    const existeValorActual =
+      Array.from(
+        formSupervisorSite.options
+      ).some(
+        (option) =>
+          option.value === valorActual
+      );
+
+    if (existeValorActual) {
+      formSupervisorSite.value =
+        valorActual;
+    } else if (
+      formSupervisorSite.options.length
+    ) {
+      formSupervisorSite.selectedIndex =
+        0;
+    }
   }
 
   function obtenerSedesSupervisorRespaldo() {
@@ -939,6 +1006,10 @@
   }
 
   function abrirNuevoSupervisor() {
+    asegurarSedesFormularioSupervisor(
+      catalogosSupervisores.sedes
+    );
+
     supervisorForm.reset();
     formSupervisorId.value = '';
     formSupervisorStatus.value = 'ACTIVO';
@@ -962,6 +1033,10 @@
   function abrirEditarSupervisor(
     supervisor
   ) {
+    asegurarSedesFormularioSupervisor(
+      catalogosSupervisores.sedes
+    );
+
     formSupervisorId.value =
       supervisor.idSupervisor || '';
 
