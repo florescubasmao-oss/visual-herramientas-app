@@ -6,6 +6,9 @@
 
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
+  const dashboardView = document.getElementById('dashboardView');
+  const usersView = document.getElementById('usersView');
+
   const loginForm = document.getElementById('loginForm');
   const correoInput = document.getElementById('correo');
   const claveInput = document.getElementById('clave');
@@ -21,7 +24,20 @@
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
 
+  const backUsersButton = document.getElementById('backUsersButton');
+  const refreshUsersButton = document.getElementById('refreshUsersButton');
+  const userSearch = document.getElementById('userSearch');
+  const userProfileFilter = document.getElementById('userProfileFilter');
+  const userSiteFilter = document.getElementById('userSiteFilter');
+  const userStatusFilter = document.getElementById('userStatusFilter');
+  const usersLoading = document.getElementById('usersLoading');
+  const usersTable = document.getElementById('usersTable');
+  const usersTableBody = document.getElementById('usersTableBody');
+  const usersEmpty = document.getElementById('usersEmpty');
+
   let auth = null;
+  let usuarios = [];
+  let puedeAdministrarUsuarios = false;
 
   iniciar();
 
@@ -35,12 +51,21 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backUsersButton.addEventListener('click', mostrarDashboard);
+    refreshUsersButton.addEventListener('click', cargarUsuarios);
+
+    [
+      userSearch,
+      userProfileFilter,
+      userSiteFilter,
+      userStatusFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarUsuarios);
+      control.addEventListener('change', renderizarUsuarios);
+    });
 
     document.querySelectorAll('[data-module]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const moduleName = button.dataset.module.replaceAll('_', ' ');
-        mostrarToast(`${moduleName}: módulo pendiente de implementación`);
-      });
+      button.addEventListener('click', () => abrirModulo(button));
     });
 
     const sesionGuardada = leerSesionGuardada();
@@ -177,6 +202,7 @@
 
     loginView.hidden = true;
     appView.hidden = false;
+    mostrarDashboard();
   }
 
   function aplicarPermisosModulos(permisos) {
@@ -223,6 +249,315 @@
     });
   }
 
+  function abrirModulo(button) {
+    const modulo = String(button.dataset.module || '').toUpperCase();
+
+    if (modulo === 'USUARIOS') {
+      abrirUsuarios();
+      return;
+    }
+
+    mostrarToast(
+      `${modulo.replaceAll('_', ' ')}: módulo pendiente de implementación`
+    );
+  }
+
+  async function abrirUsuarios() {
+    dashboardView.hidden = true;
+    usersView.hidden = false;
+    await cargarUsuarios();
+  }
+
+  function mostrarDashboard() {
+    usersView.hidden = true;
+    dashboardView.hidden = false;
+  }
+
+  async function cargarUsuarios() {
+    usersLoading.hidden = false;
+    usersLoading.textContent = 'Cargando usuarios…';
+    usersTable.hidden = true;
+    usersEmpty.hidden = true;
+    refreshUsersButton.disabled = true;
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'listar_usuarios',
+        token: auth.token
+      });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudieron cargar los usuarios.'
+        );
+      }
+
+      usuarios = Array.isArray(respuesta.usuarios)
+        ? respuesta.usuarios
+        : [];
+
+      puedeAdministrarUsuarios =
+        Boolean(respuesta.puedeAdministrar);
+
+      actualizarOpcionesFiltros();
+      renderizarUsuarios();
+      usersLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      usersLoading.hidden = false;
+      usersLoading.textContent = error.message;
+      usersTable.hidden = true;
+    } finally {
+      refreshUsersButton.disabled = false;
+    }
+  }
+
+  function actualizarOpcionesFiltros() {
+    llenarSelect(
+      userProfileFilter,
+      usuarios.map((usuario) => usuario.perfil),
+      'Todos'
+    );
+
+    llenarSelect(
+      userSiteFilter,
+      usuarios.map((usuario) => usuario.sedeBase),
+      'Todas'
+    );
+  }
+
+  function llenarSelect(select, valores, etiquetaTodos) {
+    const valorActual = select.value;
+
+    const unicos = [...new Set(
+      valores
+        .map((valor) => String(valor || '').trim())
+        .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, 'es'));
+
+    select.innerHTML = '';
+
+    const optionTodos = document.createElement('option');
+    optionTodos.value = '';
+    optionTodos.textContent = etiquetaTodos;
+    select.appendChild(optionTodos);
+
+    unicos.forEach((valor) => {
+      const option = document.createElement('option');
+      option.value = valor.toUpperCase();
+      option.textContent = formatearTexto(valor);
+      select.appendChild(option);
+    });
+
+    if (
+      [...select.options].some((option) => option.value === valorActual)
+    ) {
+      select.value = valorActual;
+    }
+  }
+
+  function renderizarUsuarios() {
+    const texto = normalizarBusqueda(userSearch.value);
+    const perfil = String(userProfileFilter.value || '').toUpperCase();
+    const sede = String(userSiteFilter.value || '').toUpperCase();
+    const estado = String(userStatusFilter.value || '').toUpperCase();
+
+    const filtrados = usuarios.filter((usuario) => {
+      const coincideTexto = !texto || normalizarBusqueda([
+        usuario.nombresApellidos,
+        usuario.correo,
+        usuario.dni
+      ].join(' ')).includes(texto);
+
+      const coincidePerfil =
+        !perfil ||
+        String(usuario.perfil || '').toUpperCase() === perfil;
+
+      const coincideSede =
+        !sede ||
+        String(usuario.sedeBase || '').toUpperCase() === sede;
+
+      const coincideEstado =
+        !estado ||
+        String(usuario.estado || '').toUpperCase() === estado;
+
+      return (
+        coincideTexto &&
+        coincidePerfil &&
+        coincideSede &&
+        coincideEstado
+      );
+    });
+
+    usersTableBody.innerHTML = '';
+
+    filtrados.forEach((usuario) => {
+      usersTableBody.appendChild(
+        crearFilaUsuario(usuario)
+      );
+    });
+
+    usersLoading.hidden = true;
+    usersTable.hidden = filtrados.length === 0;
+    usersEmpty.hidden = filtrados.length !== 0;
+  }
+
+  function crearFilaUsuario(usuario) {
+    const fila = document.createElement('tr');
+
+    const celdaUsuario = document.createElement('td');
+    celdaUsuario.className = 'user-cell';
+    celdaUsuario.innerHTML =
+      `<strong>${escaparHtml(usuario.nombresApellidos || 'Sin nombre')}</strong>` +
+      `<small>${escaparHtml(usuario.dni || 'Sin DNI')}</small>`;
+    fila.appendChild(celdaUsuario);
+
+    fila.appendChild(crearCelda(usuario.correo));
+    fila.appendChild(crearCelda(formatearTexto(usuario.perfil)));
+    fila.appendChild(crearCelda(formatearTexto(usuario.sedeBase)));
+
+    const celdaEstado = document.createElement('td');
+    const estado = String(usuario.estado || '').toUpperCase();
+    const insignia = document.createElement('span');
+    insignia.className =
+      'status-badge ' +
+      (estado === 'ACTIVO' ? 'status-active' : 'status-inactive');
+    insignia.textContent = formatearTexto(estado || 'Sin estado');
+    celdaEstado.appendChild(insignia);
+    fila.appendChild(celdaEstado);
+
+    const celdaClave = document.createElement('td');
+    const clave = document.createElement('span');
+    clave.className =
+      'password-value ' +
+      (!usuario.claveVisible ? 'password-empty' : '');
+    clave.textContent =
+      usuario.claveVisible || 'Pendiente de asignar';
+    celdaClave.appendChild(clave);
+    fila.appendChild(celdaClave);
+
+    fila.appendChild(
+      crearCelda(usuario.ultimoAcceso || 'Sin registro')
+    );
+
+    const celdaAcciones = document.createElement('td');
+    celdaAcciones.className = 'actions-cell';
+
+    if (puedeAdministrarUsuarios) {
+      const manualButton = crearBotonAccion(
+        'Cambiar clave',
+        () => cambiarClaveManual(usuario)
+      );
+
+      const generateButton = crearBotonAccion(
+        'Generar',
+        () => generarClaveUsuario(usuario)
+      );
+
+      celdaAcciones.appendChild(manualButton);
+      celdaAcciones.appendChild(generateButton);
+    } else {
+      celdaAcciones.textContent = 'Solo lectura';
+    }
+
+    fila.appendChild(celdaAcciones);
+
+    return fila;
+  }
+
+  function crearCelda(valor) {
+    const celda = document.createElement('td');
+    celda.textContent = valor || '';
+    return celda;
+  }
+
+  function crearBotonAccion(texto, accion) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'action-button';
+    button.textContent = texto;
+    button.addEventListener('click', accion);
+    return button;
+  }
+
+  async function cambiarClaveManual(usuario) {
+    const actual = usuario.claveVisible || '';
+    const clave = window.prompt(
+      `Escribe la nueva contraseña para ${usuario.correo}:`,
+      actual
+    );
+
+    if (clave === null) {
+      return;
+    }
+
+    const claveLimpia = String(clave).trim();
+
+    if (claveLimpia.length < 4) {
+      window.alert(
+        'La contraseña debe tener al menos 4 caracteres.'
+      );
+      return;
+    }
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'establecer_clave_usuario',
+        token: auth.token,
+        correo: usuario.correo,
+        clave: claveLimpia
+      });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudo actualizar la contraseña.'
+        );
+      }
+
+      mostrarToast('Contraseña actualizada');
+      await cargarUsuarios();
+
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }
+
+  async function generarClaveUsuario(usuario) {
+    const confirmado = window.confirm(
+      `Se generará una nueva contraseña para ${usuario.correo}. ` +
+      'La contraseña anterior dejará de funcionar. ¿Continuar?'
+    );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'generar_clave_usuario',
+        token: auth.token,
+        correo: usuario.correo
+      });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudo generar la contraseña.'
+        );
+      }
+
+      window.alert(
+        `Nueva contraseña para ${usuario.correo}:\n\n` +
+        respuesta.claveVisible
+      );
+
+      await cargarUsuarios();
+
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }
+
   async function cerrarSesion() {
     const token = auth && auth.token ? auth.token : '';
 
@@ -244,6 +579,7 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    usuarios = [];
   }
 
   async function solicitarApi(payload) {
@@ -324,13 +660,30 @@
   }
 
   function formatearTexto(valor) {
-    return String(valor)
+    return String(valor || '')
       .replaceAll('_', ' ')
       .toLowerCase()
       .replace(
         /(^|\s)([a-záéíóúñ])/g,
         (texto, espacio, letra) => espacio + letra.toUpperCase()
       );
+  }
+
+  function normalizarBusqueda(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function escaparHtml(valor) {
+    return String(valor || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
   }
 
   function mostrarToast(mensaje) {

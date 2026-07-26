@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.3.2">
+  <link rel="stylesheet" href="css/styles.css?v=0.4.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -98,7 +98,7 @@
       </div>
     </header>
 
-    <main class="main-content">
+    <main id="dashboardView" class="main-content">
       <section class="welcome-card">
         <div>
           <p class="section-label">Inicio</p>
@@ -250,7 +250,7 @@
 
           <button class="module-card" type="button" data-module="USUARIOS">
             <span class="module-icon">♙</span>
-            <span><strong>Usuarios</strong><small>Accesos, perfiles y estado</small></span>
+            <span><strong>Usuarios</strong><small>Accesos, perfiles y contraseñas</small></span>
           </button>
 
           <button class="module-card" type="button" data-module="ADMINISTRACION">
@@ -258,6 +258,89 @@
             <span><strong>Administración</strong><small>Módulos, permisos y configuración general</small></span>
           </button>
         </div>
+      </section>
+    </main>
+
+    <main id="usersView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button id="backUsersButton" class="secondary-button compact-button" type="button">
+            ← Volver
+          </button>
+          <div>
+            <p class="section-label">Administración</p>
+            <h2>Usuarios y contraseñas</h2>
+            <p class="subtitle">Consulta usuarios y administra sus contraseñas visibles.</p>
+          </div>
+        </div>
+
+        <button id="refreshUsersButton" class="secondary-button" type="button">
+          Actualizar
+        </button>
+      </section>
+
+      <section class="filters-card" aria-label="Filtros de usuarios">
+        <div class="filters-grid">
+          <div class="field-group">
+            <label for="userSearch">Buscar</label>
+            <input
+              id="userSearch"
+              type="search"
+              placeholder="Nombre, correo o DNI"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="userProfileFilter">Perfil</label>
+            <select id="userProfileFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="userSiteFilter">Sede</label>
+            <select id="userSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="userStatusFilter">Estado</label>
+            <select id="userStatusFilter">
+              <option value="">Todos</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="usersLoading" class="loading-state">
+          Selecciona Actualizar para cargar los usuarios.
+        </div>
+
+        <div class="table-scroll">
+          <table id="usersTable" class="data-table" hidden>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Correo</th>
+                <th>Perfil</th>
+                <th>Sede</th>
+                <th>Estado</th>
+                <th>Contraseña visible</th>
+                <th>Último acceso</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="usersEmpty" class="empty-state" hidden>
+          No se encontraron usuarios con los filtros aplicados.
+        </p>
       </section>
     </main>
 
@@ -269,7 +352,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.3.2"></script>
-  <script src="js/app.js?v=0.3.2"></script>
+  <script src="js/config.js?v=0.4.0"></script>
+  <script src="js/app.js?v=0.4.0"></script>
 </body>
 </html>
