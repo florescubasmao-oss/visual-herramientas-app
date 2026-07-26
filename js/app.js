@@ -54,6 +54,8 @@
   const userFormMessage = document.getElementById('userFormMessage');
   const saveUserButton = document.getElementById('saveUserButton');
 
+  limpiarCredencialesUrl();
+
   let auth = null;
   let usuarios = [];
   let puedeAdministrarUsuarios = false;
@@ -203,6 +205,41 @@
     } catch (error) {
       console.warn('No se pudo validar la sesión remota.', error);
       return false;
+    }
+  }
+
+  function limpiarCredencialesUrl() {
+    const url = new URL(window.location.href);
+
+    const parametrosSensibles = [
+      'correo',
+      'clave',
+      'password',
+      'contrasena',
+      'contraseña'
+    ];
+
+    let cambio = false;
+
+    parametrosSensibles.forEach((parametro) => {
+      if (url.searchParams.has(parametro)) {
+        url.searchParams.delete(parametro);
+        cambio = true;
+      }
+    });
+
+    if (cambio) {
+      const query = url.searchParams.toString();
+      const rutaLimpia =
+        url.pathname +
+        (query ? `?${query}` : '') +
+        url.hash;
+
+      window.history.replaceState(
+        null,
+        document.title,
+        rutaLimpia
+      );
     }
   }
 

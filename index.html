@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.4.1">
+  <link rel="stylesheet" href="css/styles.css?v=0.4.2">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -23,12 +23,11 @@
         <p class="subtitle">Sistema de Control y Gestión de Herramientas</p>
       </div>
 
-      <form id="loginForm" class="login-form" novalidate>
+      <form id="loginForm" class="login-form" novalidate onsubmit="return false;">
         <div class="field-group">
           <label for="correo">Correo</label>
           <input
             id="correo"
-            name="correo"
             type="email"
             autocomplete="username"
             placeholder="usuario@correo.com"
@@ -41,7 +40,6 @@
           <div class="password-field">
             <input
               id="clave"
-              name="clave"
               type="password"
               autocomplete="current-password"
               placeholder="Ingresa tu contraseña"
@@ -439,7 +437,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.4.1"></script>
-  <script src="js/app.js?v=0.4.1"></script>
+  <script src="js/config.js?v=0.4.2"></script>
+  <script src="js/app.js?v=0.4.2"></script>
 </body>
 </html>
