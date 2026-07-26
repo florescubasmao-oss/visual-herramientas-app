@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const crewsView = document.getElementById('crewsView');
   const usersView = document.getElementById('usersView');
 
   const loginForm = document.getElementById('loginForm');
@@ -23,6 +24,40 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backCrewsButton = document.getElementById('backCrewsButton');
+  const newCrewButton = document.getElementById('newCrewButton');
+  const refreshCrewsButton = document.getElementById('refreshCrewsButton');
+  const crewSearch = document.getElementById('crewSearch');
+  const crewSiteFilter = document.getElementById('crewSiteFilter');
+  const crewPlatformFilter = document.getElementById('crewPlatformFilter');
+  const crewSupervisorFilter = document.getElementById('crewSupervisorFilter');
+  const crewStatusFilter = document.getElementById('crewStatusFilter');
+  const crewsLoading = document.getElementById('crewsLoading');
+  const crewsTable = document.getElementById('crewsTable');
+  const crewsTableBody = document.getElementById('crewsTableBody');
+  const crewsEmpty = document.getElementById('crewsEmpty');
+
+  const crewModal = document.getElementById('crewModal');
+  const closeCrewModalButton = document.getElementById('closeCrewModalButton');
+  const cancelCrewFormButton = document.getElementById('cancelCrewFormButton');
+  const crewForm = document.getElementById('crewForm');
+  const crewModalTitle = document.getElementById('crewModalTitle');
+  const formCrewId = document.getElementById('formCrewId');
+  const formCrewCode = document.getElementById('formCrewCode');
+  const formCrewSite = document.getElementById('formCrewSite');
+  const formCrewPlatform = document.getElementById('formCrewPlatform');
+  const formCrewTech1 = document.getElementById('formCrewTech1');
+  const formCrewDni1 = document.getElementById('formCrewDni1');
+  const formCrewRole1 = document.getElementById('formCrewRole1');
+  const formCrewTech2 = document.getElementById('formCrewTech2');
+  const formCrewDni2 = document.getElementById('formCrewDni2');
+  const formCrewRole2 = document.getElementById('formCrewRole2');
+  const formCrewSupervisor = document.getElementById('formCrewSupervisor');
+  const formCrewStatus = document.getElementById('formCrewStatus');
+  const formCrewNotes = document.getElementById('formCrewNotes');
+  const crewFormMessage = document.getElementById('crewFormMessage');
+  const saveCrewButton = document.getElementById('saveCrewButton');
 
   const backUsersButton = document.getElementById('backUsersButton');
   const refreshUsersButton = document.getElementById('refreshUsersButton');
@@ -57,6 +92,16 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let cuadrillas = [];
+  let puedeRegistrarCuadrillas = false;
+  let puedeEditarCuadrillas = false;
+  let catalogosCuadrillas = {
+    sedes: [],
+    plataformas: [],
+    cargos: [],
+    estados: [],
+    supervisores: []
+  };
   let usuarios = [];
   let puedeAdministrarUsuarios = false;
   let catalogosUsuarios = {
@@ -77,6 +122,31 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backCrewsButton.addEventListener('click', mostrarDashboard);
+    newCrewButton.addEventListener('click', abrirNuevaCuadrilla);
+    refreshCrewsButton.addEventListener('click', cargarCuadrillas);
+    closeCrewModalButton.addEventListener('click', cerrarFormularioCuadrilla);
+    cancelCrewFormButton.addEventListener('click', cerrarFormularioCuadrilla);
+    crewForm.addEventListener('submit', guardarCuadrilla);
+    formCrewSite.addEventListener('change', actualizarSupervisoresFormulario);
+    formCrewPlatform.addEventListener('change', actualizarSupervisoresFormulario);
+    crewModal.addEventListener('click', (event) => {
+      if (event.target === crewModal) {
+        cerrarFormularioCuadrilla();
+      }
+    });
+
+    [
+      crewSearch,
+      crewSiteFilter,
+      crewPlatformFilter,
+      crewSupervisorFilter,
+      crewStatusFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarCuadrillas);
+      control.addEventListener('change', renderizarCuadrillas);
+    });
+
     backUsersButton.addEventListener('click', mostrarDashboard);
     refreshUsersButton.addEventListener('click', cargarUsuarios);
     newUserButton.addEventListener('click', abrirNuevoUsuario);
@@ -322,6 +392,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'CUADRILLAS') {
+      abrirCuadrillas();
+      return;
+    }
+
     if (modulo === 'USUARIOS') {
       abrirUsuarios();
       return;
@@ -332,13 +407,438 @@
     );
   }
 
+  async function abrirCuadrillas() {
+    dashboardView.hidden = true;
+    usersView.hidden = true;
+    crewsView.hidden = false;
+    await cargarCuadrillas();
+  }
+
+  async function cargarCuadrillas() {
+    crewsLoading.hidden = false;
+    crewsLoading.textContent = 'Cargando cuadrillas…';
+    crewsTable.hidden = true;
+    crewsEmpty.hidden = true;
+    refreshCrewsButton.disabled = true;
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'listar_cuadrillas',
+        token: auth.token
+      });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudieron cargar las cuadrillas.'
+        );
+      }
+
+      cuadrillas = Array.isArray(respuesta.cuadrillas)
+        ? respuesta.cuadrillas
+        : [];
+
+      puedeRegistrarCuadrillas = Boolean(respuesta.puedeRegistrar);
+      puedeEditarCuadrillas = Boolean(respuesta.puedeEditar);
+      catalogosCuadrillas = respuesta.catalogos || {
+        sedes: [],
+        plataformas: [],
+        cargos: [],
+        estados: [],
+        supervisores: []
+      };
+
+      newCrewButton.hidden = !puedeRegistrarCuadrillas;
+      actualizarCatalogosCuadrillas();
+      renderizarCuadrillas();
+      crewsLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      crewsLoading.hidden = false;
+      crewsLoading.textContent = error.message;
+      crewsTable.hidden = true;
+    } finally {
+      refreshCrewsButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosCuadrillas() {
+    llenarSelectConTodos(
+      crewSiteFilter,
+      catalogosCuadrillas.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      crewPlatformFilter,
+      catalogosCuadrillas.plataformas || [],
+      'Todas'
+    );
+
+    const supervisoresFiltro = [
+      ...new Set(
+        cuadrillas
+          .map((cuadrilla) => cuadrilla.supervisor)
+          .filter(Boolean)
+      )
+    ];
+
+    llenarSelectConTodos(
+      crewSupervisorFilter,
+      supervisoresFiltro,
+      'Todos'
+    );
+
+    llenarSelectFormulario(
+      formCrewSite,
+      catalogosCuadrillas.sedes || []
+    );
+
+    llenarSelectFormulario(
+      formCrewPlatform,
+      catalogosCuadrillas.plataformas || []
+    );
+
+    llenarSelectFormulario(
+      formCrewRole1,
+      catalogosCuadrillas.cargos || []
+    );
+
+    llenarSelectFormulario(
+      formCrewRole2,
+      catalogosCuadrillas.cargos || []
+    );
+  }
+
+  function llenarSelectConTodos(select, valores, etiquetaTodos) {
+    const actual = select.value;
+    select.innerHTML = '';
+
+    const todos = document.createElement('option');
+    todos.value = '';
+    todos.textContent = etiquetaTodos;
+    select.appendChild(todos);
+
+    [...new Set(valores.map((valor) => String(valor || '').trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'es'))
+      .forEach((valor) => {
+        const option = document.createElement('option');
+        option.value = valor.toUpperCase();
+        option.textContent = formatearTexto(valor);
+        select.appendChild(option);
+      });
+
+    if ([...select.options].some((option) => option.value === actual)) {
+      select.value = actual;
+    }
+  }
+
+  function renderizarCuadrillas() {
+    const texto = normalizarBusqueda(crewSearch.value);
+    const sede = String(crewSiteFilter.value || '').toUpperCase();
+    const plataforma = String(crewPlatformFilter.value || '').toUpperCase();
+    const supervisor = normalizarBusqueda(crewSupervisorFilter.value);
+    const estado = String(crewStatusFilter.value || '').toUpperCase();
+
+    const filtradas = cuadrillas.filter((cuadrilla) => {
+      const coincideTexto = !texto || normalizarBusqueda([
+        cuadrilla.codigoCuadrilla,
+        cuadrilla.tecnico1,
+        cuadrilla.dniTecnico1,
+        cuadrilla.tecnico2,
+        cuadrilla.dniTecnico2,
+        cuadrilla.supervisor
+      ].join(' ')).includes(texto);
+
+      const coincideSede = !sede ||
+        String(cuadrilla.sede || '').toUpperCase() === sede;
+
+      const coincidePlataforma = !plataforma ||
+        String(cuadrilla.plataforma || '').toUpperCase() === plataforma;
+
+      const coincideSupervisor = !supervisor ||
+        normalizarBusqueda(cuadrilla.supervisor) === supervisor;
+
+      const coincideEstado = !estado ||
+        String(cuadrilla.estado || '').toUpperCase() === estado;
+
+      return coincideTexto && coincideSede && coincidePlataforma &&
+        coincideSupervisor && coincideEstado;
+    });
+
+    crewsTableBody.innerHTML = '';
+
+    filtradas.forEach((cuadrilla) => {
+      crewsTableBody.appendChild(crearFilaCuadrilla(cuadrilla));
+    });
+
+    crewsLoading.hidden = true;
+    crewsTable.hidden = filtradas.length === 0;
+    crewsEmpty.hidden = filtradas.length !== 0;
+  }
+
+  function crearFilaCuadrilla(cuadrilla) {
+    const fila = document.createElement('tr');
+
+    const celdaCodigo = document.createElement('td');
+    celdaCodigo.className = 'crew-code-cell';
+    celdaCodigo.innerHTML =
+      `<strong>${escaparHtml(cuadrilla.codigoCuadrilla || 'Sin código')}</strong>` +
+      `<small>${escaparHtml(cuadrilla.idCuadrilla || '')}</small>`;
+    fila.appendChild(celdaCodigo);
+
+    const celdaSede = document.createElement('td');
+    celdaSede.className = 'crew-code-cell';
+    celdaSede.innerHTML =
+      `<strong>${escaparHtml(formatearTexto(cuadrilla.sede))}</strong>` +
+      `<small>${escaparHtml(formatearTexto(cuadrilla.plataforma))}</small>`;
+    fila.appendChild(celdaSede);
+
+    fila.appendChild(crearCeldaTecnico(
+      cuadrilla.tecnico1,
+      cuadrilla.dniTecnico1,
+      cuadrilla.cargoTecnico1
+    ));
+
+    fila.appendChild(crearCeldaTecnico(
+      cuadrilla.tecnico2,
+      cuadrilla.dniTecnico2,
+      cuadrilla.cargoTecnico2
+    ));
+
+    fila.appendChild(crearCelda(cuadrilla.supervisor || 'Sin asignar'));
+
+    const celdaEstado = document.createElement('td');
+    const estado = String(cuadrilla.estado || '').toUpperCase();
+    const insignia = document.createElement('span');
+    insignia.className = 'status-badge ' +
+      (estado === 'ACTIVO' ? 'status-active' : 'status-inactive');
+    insignia.textContent = formatearTexto(estado || 'Sin estado');
+    celdaEstado.appendChild(insignia);
+    fila.appendChild(celdaEstado);
+
+    const celdaAcciones = document.createElement('td');
+    celdaAcciones.className = 'actions-cell';
+
+    if (puedeEditarCuadrillas) {
+      celdaAcciones.appendChild(crearBotonAccion(
+        'Editar',
+        () => abrirEditarCuadrilla(cuadrilla)
+      ));
+
+      const nuevoEstado = estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+      celdaAcciones.appendChild(crearBotonAccion(
+        nuevoEstado === 'ACTIVO' ? 'Activar' : 'Inactivar',
+        () => cambiarEstadoCuadrilla(cuadrilla, nuevoEstado)
+      ));
+    } else {
+      celdaAcciones.textContent = 'Solo lectura';
+    }
+
+    fila.appendChild(celdaAcciones);
+    return fila;
+  }
+
+  function crearCeldaTecnico(nombre, dni, cargo) {
+    const celda = document.createElement('td');
+    celda.className = 'crew-person-cell';
+
+    if (!nombre && !dni) {
+      celda.textContent = 'Sin asignar';
+      return celda;
+    }
+
+    celda.innerHTML =
+      `<strong>${escaparHtml(nombre || 'Sin nombre')}</strong>` +
+      `<small>${escaparHtml(dni || 'Sin DNI')} · ${escaparHtml(formatearTexto(cargo || ''))}</small>`;
+    return celda;
+  }
+
+  function abrirNuevaCuadrilla() {
+    crewForm.reset();
+    formCrewId.value = '';
+    formCrewStatus.value = 'ACTIVO';
+    crewModalTitle.textContent = 'Nueva cuadrilla';
+    saveCrewButton.textContent = 'Registrar cuadrilla';
+    crewFormMessage.textContent = '';
+
+    if (formCrewSite.options.length) formCrewSite.selectedIndex = 0;
+    if (formCrewPlatform.options.length) formCrewPlatform.selectedIndex = 0;
+
+    seleccionarOpcionSiExiste(formCrewRole1, 'TECNICO 1');
+    seleccionarOpcionSiExiste(formCrewRole2, 'TECNICO 2');
+    actualizarSupervisoresFormulario();
+
+    crewModal.hidden = false;
+    formCrewCode.focus();
+  }
+
+  function abrirEditarCuadrilla(cuadrilla) {
+    formCrewId.value = cuadrilla.idCuadrilla || '';
+    formCrewCode.value = cuadrilla.codigoCuadrilla || '';
+    formCrewSite.value = String(cuadrilla.sede || '').toUpperCase();
+    formCrewPlatform.value = String(cuadrilla.plataforma || '').toUpperCase();
+    formCrewTech1.value = cuadrilla.tecnico1 || '';
+    formCrewDni1.value = cuadrilla.dniTecnico1 || '';
+    formCrewRole1.value = String(cuadrilla.cargoTecnico1 || '').toUpperCase();
+    formCrewTech2.value = cuadrilla.tecnico2 || '';
+    formCrewDni2.value = cuadrilla.dniTecnico2 || '';
+    formCrewRole2.value = String(cuadrilla.cargoTecnico2 || '').toUpperCase();
+    formCrewStatus.value = String(cuadrilla.estado || 'ACTIVO').toUpperCase();
+    formCrewNotes.value = cuadrilla.observaciones || '';
+    crewModalTitle.textContent = 'Editar cuadrilla';
+    saveCrewButton.textContent = 'Guardar cambios';
+    crewFormMessage.textContent = '';
+
+    actualizarSupervisoresFormulario(cuadrilla.idSupervisor || '');
+    crewModal.hidden = false;
+    formCrewCode.focus();
+  }
+
+  function actualizarSupervisoresFormulario(idSeleccionado = '') {
+    const sede = String(formCrewSite.value || '').toUpperCase();
+    const plataforma = String(formCrewPlatform.value || '').toUpperCase();
+    const actual = idSeleccionado || formCrewSupervisor.value;
+
+    formCrewSupervisor.innerHTML = '';
+    const sinAsignar = document.createElement('option');
+    sinAsignar.value = '';
+    sinAsignar.textContent = 'Sin asignar';
+    formCrewSupervisor.appendChild(sinAsignar);
+
+    (catalogosCuadrillas.supervisores || [])
+      .filter((supervisor) => {
+        const mismaSede = !sede ||
+          String(supervisor.sede || '').toUpperCase() === sede;
+        const plataformaSupervisor = String(supervisor.plataforma || '').toUpperCase();
+        const compatible = !plataformaSupervisor ||
+          plataformaSupervisor === 'TODAS' ||
+          !plataforma ||
+          plataformaSupervisor === plataforma;
+        return mismaSede && compatible;
+      })
+      .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'))
+      .forEach((supervisor) => {
+        const option = document.createElement('option');
+        option.value = supervisor.idSupervisor;
+        option.textContent = `${supervisor.nombre} · ${formatearTexto(supervisor.plataforma || 'General')}`;
+        formCrewSupervisor.appendChild(option);
+      });
+
+    if ([...formCrewSupervisor.options].some((option) => option.value === actual)) {
+      formCrewSupervisor.value = actual;
+    }
+  }
+
+  function seleccionarOpcionSiExiste(select, valor) {
+    if ([...select.options].some((option) => option.value === valor)) {
+      select.value = valor;
+    }
+  }
+
+  function cerrarFormularioCuadrilla() {
+    crewModal.hidden = true;
+    crewFormMessage.textContent = '';
+  }
+
+  async function guardarCuadrilla(event) {
+    event.preventDefault();
+    crewFormMessage.textContent = '';
+
+    const payload = {
+      accion: 'guardar_cuadrilla',
+      token: auth.token,
+      idCuadrilla: formCrewId.value.trim(),
+      codigoCuadrilla: formCrewCode.value.trim(),
+      sede: formCrewSite.value,
+      plataforma: formCrewPlatform.value,
+      tecnico1: formCrewTech1.value.trim(),
+      dniTecnico1: formCrewDni1.value.trim(),
+      cargoTecnico1: formCrewRole1.value,
+      tecnico2: formCrewTech2.value.trim(),
+      dniTecnico2: formCrewDni2.value.trim(),
+      cargoTecnico2: formCrewRole2.value,
+      idSupervisor: formCrewSupervisor.value,
+      estado: formCrewStatus.value,
+      observaciones: formCrewNotes.value.trim()
+    };
+
+    if (
+      !payload.codigoCuadrilla ||
+      !payload.sede ||
+      !payload.plataforma ||
+      !payload.tecnico1 ||
+      !payload.dniTecnico1
+    ) {
+      crewFormMessage.textContent = 'Completa los campos obligatorios.';
+      return;
+    }
+
+    saveCrewButton.disabled = true;
+    saveCrewButton.textContent = 'Guardando…';
+
+    try {
+      const respuesta = await solicitarApi(payload);
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudo guardar la cuadrilla.'
+        );
+      }
+
+      cerrarFormularioCuadrilla();
+      mostrarToast(respuesta.mensaje);
+      await cargarCuadrillas();
+
+    } catch (error) {
+      crewFormMessage.textContent = error.message;
+    } finally {
+      saveCrewButton.disabled = false;
+      saveCrewButton.textContent = formCrewId.value
+        ? 'Guardar cambios'
+        : 'Registrar cuadrilla';
+    }
+  }
+
+  async function cambiarEstadoCuadrilla(cuadrilla, estado) {
+    const accion = estado === 'ACTIVO' ? 'activar' : 'inactivar';
+    const confirmado = window.confirm(
+      `¿Deseas ${accion} la cuadrilla ${cuadrilla.codigoCuadrilla}?`
+    );
+
+    if (!confirmado) return;
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'cambiar_estado_cuadrilla',
+        token: auth.token,
+        idCuadrilla: cuadrilla.idCuadrilla,
+        estado: estado
+      });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(respuesta.mensaje);
+      await cargarCuadrillas();
+
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }
+
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    crewsView.hidden = true;
     usersView.hidden = false;
     await cargarUsuarios();
   }
 
   function mostrarDashboard() {
+    crewsView.hidden = true;
     usersView.hidden = true;
     dashboardView.hidden = false;
   }
@@ -855,6 +1355,7 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    cuadrillas = [];
     usuarios = [];
   }
 

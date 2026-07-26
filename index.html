@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.4.2">
+  <link rel="stylesheet" href="css/styles.css?v=0.5.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -259,6 +259,92 @@
       </section>
     </main>
 
+
+    <main id="crewsView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button id="backCrewsButton" class="secondary-button compact-button" type="button">
+            ← Volver
+          </button>
+          <div>
+            <p class="section-label">Organización</p>
+            <h2>Gestión de cuadrillas</h2>
+            <p class="subtitle">Técnicos, plataformas, supervisores y estado operativo.</p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button id="newCrewButton" class="primary-button toolbar-button" type="button" hidden>
+            + Nueva cuadrilla
+          </button>
+
+          <button id="refreshCrewsButton" class="secondary-button" type="button">
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="filters-card" aria-label="Filtros de cuadrillas">
+        <div class="crew-filters-grid">
+          <div class="field-group">
+            <label for="crewSearch">Buscar</label>
+            <input id="crewSearch" type="search" placeholder="Código, técnico o DNI">
+          </div>
+
+          <div class="field-group">
+            <label for="crewSiteFilter">Sede</label>
+            <select id="crewSiteFilter"><option value="">Todas</option></select>
+          </div>
+
+          <div class="field-group">
+            <label for="crewPlatformFilter">Plataforma</label>
+            <select id="crewPlatformFilter"><option value="">Todas</option></select>
+          </div>
+
+          <div class="field-group">
+            <label for="crewSupervisorFilter">Supervisor</label>
+            <select id="crewSupervisorFilter"><option value="">Todos</option></select>
+          </div>
+
+          <div class="field-group">
+            <label for="crewStatusFilter">Estado</label>
+            <select id="crewStatusFilter">
+              <option value="">Todos</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="crewsLoading" class="loading-state">
+          Selecciona Actualizar para cargar las cuadrillas.
+        </div>
+
+        <div class="table-scroll">
+          <table id="crewsTable" class="data-table crews-table" hidden>
+            <thead>
+              <tr>
+                <th>Cuadrilla</th>
+                <th>Sede / plataforma</th>
+                <th>Técnico 1</th>
+                <th>Técnico 2</th>
+                <th>Supervisor</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="crewsTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="crewsEmpty" class="empty-state" hidden>
+          No se encontraron cuadrillas con los filtros aplicados.
+        </p>
+      </section>
+    </main>
+
     <main id="usersView" class="main-content" hidden>
       <section class="page-toolbar">
         <div class="page-toolbar-title">
@@ -355,6 +441,104 @@
   </div>
 
 
+
+  <div id="crewModal" class="modal-backdrop" hidden>
+    <section class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="crewModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Gestión de cuadrillas</p>
+          <h2 id="crewModalTitle">Nueva cuadrilla</h2>
+        </div>
+
+        <button id="closeCrewModalButton" class="icon-button" type="button" aria-label="Cerrar">
+          ×
+        </button>
+      </header>
+
+      <form id="crewForm" class="user-form">
+        <input id="formCrewId" type="hidden">
+
+        <div class="form-grid form-grid-3">
+          <div class="field-group">
+            <label for="formCrewCode">Código de cuadrilla</label>
+            <input id="formCrewCode" type="text" placeholder="Ejemplo: P3 VISUAL" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formCrewSite">Sede</label>
+            <select id="formCrewSite" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formCrewPlatform">Plataforma</label>
+            <select id="formCrewPlatform" required></select>
+          </div>
+
+          <div class="form-section-title field-span-3">Técnico 1</div>
+
+          <div class="field-group">
+            <label for="formCrewTech1">Nombres y apellidos</label>
+            <input id="formCrewTech1" type="text" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formCrewDni1">DNI</label>
+            <input id="formCrewDni1" type="text" inputmode="numeric" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formCrewRole1">Cargo</label>
+            <select id="formCrewRole1" required></select>
+          </div>
+
+          <div class="form-section-title field-span-3">Técnico 2</div>
+
+          <div class="field-group">
+            <label for="formCrewTech2">Nombres y apellidos</label>
+            <input id="formCrewTech2" type="text">
+          </div>
+
+          <div class="field-group">
+            <label for="formCrewDni2">DNI</label>
+            <input id="formCrewDni2" type="text" inputmode="numeric">
+          </div>
+
+          <div class="field-group">
+            <label for="formCrewRole2">Cargo</label>
+            <select id="formCrewRole2"></select>
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formCrewSupervisor">Supervisor</label>
+            <select id="formCrewSupervisor">
+              <option value="">Sin asignar</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="formCrewStatus">Estado</label>
+            <select id="formCrewStatus" required>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+
+          <div class="field-group field-span-3">
+            <label for="formCrewNotes">Observaciones</label>
+            <textarea id="formCrewNotes" rows="3"></textarea>
+          </div>
+        </div>
+
+        <p id="crewFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button id="cancelCrewFormButton" class="secondary-button" type="button">Cancelar</button>
+          <button id="saveCrewButton" class="primary-button modal-primary-button" type="submit">Guardar cuadrilla</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="userModal" class="modal-backdrop" hidden>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
       <header class="modal-header">
@@ -437,7 +621,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.4.2"></script>
-  <script src="js/app.js?v=0.4.2"></script>
+  <script src="js/config.js?v=0.5.0"></script>
+  <script src="js/app.js?v=0.5.0"></script>
 </body>
 </html>

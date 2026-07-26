@@ -662,3 +662,66 @@ footer {
     padding: 18px;
   }
 }
+
+
+.crew-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, minmax(145px, 1fr));
+  gap: 14px;
+}
+
+.crews-table {
+  min-width: 1180px;
+}
+
+.crew-code-cell strong,
+.crew-code-cell small,
+.crew-person-cell strong,
+.crew-person-cell small {
+  display: block;
+}
+
+.crew-code-cell small,
+.crew-person-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.form-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field-span-3 {
+  grid-column: span 3;
+}
+
+.modal-card-wide {
+  width: min(980px, 100%);
+}
+
+.form-section-title {
+  padding: 10px 0 2px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 1100px) {
+  .crew-filters-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .crew-filters-grid,
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .field-span-3 {
+    grid-column: auto;
+  }
+}
