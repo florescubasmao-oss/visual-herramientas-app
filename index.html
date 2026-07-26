@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.4.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.4.1">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -274,9 +274,15 @@
           </div>
         </div>
 
-        <button id="refreshUsersButton" class="secondary-button" type="button">
-          Actualizar
-        </button>
+        <div class="toolbar-actions">
+          <button id="newUserButton" class="primary-button toolbar-button" type="button" hidden>
+            + Nuevo usuario
+          </button>
+
+          <button id="refreshUsersButton" class="secondary-button" type="button">
+            Actualizar
+          </button>
+        </div>
       </section>
 
       <section class="filters-card" aria-label="Filtros de usuarios">
@@ -350,9 +356,90 @@
     </footer>
   </div>
 
+
+  <div id="userModal" class="modal-backdrop" hidden>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Gestión de usuarios</p>
+          <h2 id="userModalTitle">Nuevo usuario</h2>
+        </div>
+
+        <button id="closeUserModalButton" class="icon-button" type="button" aria-label="Cerrar">
+          ×
+        </button>
+      </header>
+
+      <form id="userForm" class="user-form">
+        <input id="formUserId" type="hidden">
+
+        <div class="form-grid">
+          <div class="field-group field-span-2">
+            <label for="formUserName">Nombres y apellidos</label>
+            <input id="formUserName" type="text" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formUserDni">DNI</label>
+            <input id="formUserDni" type="text" inputmode="numeric" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formUserEmail">Correo</label>
+            <input id="formUserEmail" type="email" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formUserProfile">Perfil</label>
+            <select id="formUserProfile" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formUserSite">Sede base</label>
+            <select id="formUserSite" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formUserStatus">Estado</label>
+            <select id="formUserStatus" required>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+
+          <div id="newUserPasswordGroup" class="field-group">
+            <label for="formUserPassword">Contraseña inicial</label>
+            <input
+              id="formUserPassword"
+              type="text"
+              placeholder="Vacío = generar automáticamente"
+            >
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formUserNotes">Observaciones</label>
+            <textarea id="formUserNotes" rows="3"></textarea>
+          </div>
+        </div>
+
+        <p id="userFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button id="cancelUserFormButton" class="secondary-button" type="button">
+            Cancelar
+          </button>
+
+          <button id="saveUserButton" class="primary-button modal-primary-button" type="submit">
+            Guardar usuario
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.4.0"></script>
-  <script src="js/app.js?v=0.4.0"></script>
+  <script src="js/config.js?v=0.4.1"></script>
+  <script src="js/app.js?v=0.4.1"></script>
 </body>
 </html>

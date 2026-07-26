@@ -35,9 +35,33 @@
   const usersTableBody = document.getElementById('usersTableBody');
   const usersEmpty = document.getElementById('usersEmpty');
 
+  const newUserButton = document.getElementById('newUserButton');
+  const userModal = document.getElementById('userModal');
+  const closeUserModalButton = document.getElementById('closeUserModalButton');
+  const cancelUserFormButton = document.getElementById('cancelUserFormButton');
+  const userForm = document.getElementById('userForm');
+  const userModalTitle = document.getElementById('userModalTitle');
+  const formUserId = document.getElementById('formUserId');
+  const formUserName = document.getElementById('formUserName');
+  const formUserDni = document.getElementById('formUserDni');
+  const formUserEmail = document.getElementById('formUserEmail');
+  const formUserProfile = document.getElementById('formUserProfile');
+  const formUserSite = document.getElementById('formUserSite');
+  const formUserStatus = document.getElementById('formUserStatus');
+  const formUserPassword = document.getElementById('formUserPassword');
+  const newUserPasswordGroup = document.getElementById('newUserPasswordGroup');
+  const formUserNotes = document.getElementById('formUserNotes');
+  const userFormMessage = document.getElementById('userFormMessage');
+  const saveUserButton = document.getElementById('saveUserButton');
+
   let auth = null;
   let usuarios = [];
   let puedeAdministrarUsuarios = false;
+  let catalogosUsuarios = {
+    perfiles: [],
+    sedes: [],
+    estados: []
+  };
 
   iniciar();
 
@@ -53,6 +77,15 @@
     logoutButton.addEventListener('click', cerrarSesion);
     backUsersButton.addEventListener('click', mostrarDashboard);
     refreshUsersButton.addEventListener('click', cargarUsuarios);
+    newUserButton.addEventListener('click', abrirNuevoUsuario);
+    closeUserModalButton.addEventListener('click', cerrarFormularioUsuario);
+    cancelUserFormButton.addEventListener('click', cerrarFormularioUsuario);
+    userForm.addEventListener('submit', guardarUsuario);
+    userModal.addEventListener('click', (event) => {
+      if (event.target === userModal) {
+        cerrarFormularioUsuario();
+      }
+    });
 
     [
       userSearch,
@@ -299,6 +332,17 @@
       puedeAdministrarUsuarios =
         Boolean(respuesta.puedeAdministrar);
 
+      catalogosUsuarios =
+        respuesta.catalogos || {
+          perfiles: [],
+          sedes: [],
+          estados: []
+        };
+
+      newUserButton.hidden =
+        !puedeAdministrarUsuarios;
+
+      actualizarCatalogosFormulario();
       actualizarOpcionesFiltros();
       renderizarUsuarios();
       usersLoading.hidden = true;
@@ -455,6 +499,25 @@
         () => generarClaveUsuario(usuario)
       );
 
+      const editButton = crearBotonAccion(
+        'Editar',
+        () => abrirEditarUsuario(usuario)
+      );
+
+      const nextStatus =
+        String(usuario.estado || '').toUpperCase() === 'ACTIVO'
+          ? 'INACTIVO'
+          : 'ACTIVO';
+
+      const statusButton = crearBotonAccion(
+        nextStatus === 'ACTIVO'
+          ? 'Activar'
+          : 'Inactivar',
+        () => cambiarEstadoUsuario(usuario, nextStatus)
+      );
+
+      celdaAcciones.appendChild(editButton);
+      celdaAcciones.appendChild(statusButton);
       celdaAcciones.appendChild(manualButton);
       celdaAcciones.appendChild(generateButton);
     } else {
@@ -479,6 +542,182 @@
     button.textContent = texto;
     button.addEventListener('click', accion);
     return button;
+  }
+
+
+  function actualizarCatalogosFormulario() {
+    llenarSelectFormulario(
+      formUserProfile,
+      catalogosUsuarios.perfiles || []
+    );
+
+    llenarSelectFormulario(
+      formUserSite,
+      catalogosUsuarios.sedes || []
+    );
+  }
+
+  function llenarSelectFormulario(select, valores) {
+    select.innerHTML = '';
+
+    valores.forEach((valor) => {
+      const option = document.createElement('option');
+      option.value = String(valor || '').toUpperCase();
+      option.textContent = formatearTexto(valor);
+      select.appendChild(option);
+    });
+  }
+
+  function abrirNuevoUsuario() {
+    userForm.reset();
+    formUserId.value = '';
+    formUserStatus.value = 'ACTIVO';
+    newUserPasswordGroup.hidden = false;
+    userModalTitle.textContent = 'Nuevo usuario';
+    saveUserButton.textContent = 'Registrar usuario';
+    userFormMessage.textContent = '';
+
+    if (formUserProfile.options.length) {
+      formUserProfile.selectedIndex = 0;
+    }
+
+    if (formUserSite.options.length) {
+      formUserSite.selectedIndex = 0;
+    }
+
+    userModal.hidden = false;
+    formUserName.focus();
+  }
+
+  function abrirEditarUsuario(usuario) {
+    formUserId.value = usuario.idUsuario || '';
+    formUserName.value = usuario.nombresApellidos || '';
+    formUserDni.value = usuario.dni || '';
+    formUserEmail.value = usuario.correo || '';
+    formUserProfile.value = String(usuario.perfil || '').toUpperCase();
+    formUserSite.value = String(usuario.sedeBase || '').toUpperCase();
+    formUserStatus.value = String(usuario.estado || 'ACTIVO').toUpperCase();
+    formUserNotes.value = usuario.observaciones || '';
+    formUserPassword.value = '';
+    newUserPasswordGroup.hidden = true;
+    userModalTitle.textContent = 'Editar usuario';
+    saveUserButton.textContent = 'Guardar cambios';
+    userFormMessage.textContent = '';
+    userModal.hidden = false;
+    formUserName.focus();
+  }
+
+  function cerrarFormularioUsuario() {
+    userModal.hidden = true;
+    userFormMessage.textContent = '';
+  }
+
+  async function guardarUsuario(event) {
+    event.preventDefault();
+    userFormMessage.textContent = '';
+
+    const payload = {
+      accion: 'guardar_usuario',
+      token: auth.token,
+      idUsuario: formUserId.value.trim(),
+      nombresApellidos: formUserName.value.trim(),
+      dni: formUserDni.value.trim(),
+      correo: formUserEmail.value.trim().toLowerCase(),
+      perfil: formUserProfile.value,
+      sedeBase: formUserSite.value,
+      estado: formUserStatus.value,
+      observaciones: formUserNotes.value.trim(),
+      clave: formUserId.value
+        ? ''
+        : formUserPassword.value.trim()
+    };
+
+    if (
+      !payload.nombresApellidos ||
+      !payload.dni ||
+      !payload.correo ||
+      !payload.perfil ||
+      !payload.sedeBase
+    ) {
+      userFormMessage.textContent =
+        'Completa todos los campos obligatorios.';
+      return;
+    }
+
+    saveUserButton.disabled = true;
+    saveUserButton.textContent = 'Guardando…';
+
+    try {
+      const respuesta = await solicitarApi(payload);
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudo guardar el usuario.'
+        );
+      }
+
+      cerrarFormularioUsuario();
+
+      if (
+        !payload.idUsuario &&
+        respuesta.claveVisible
+      ) {
+        window.alert(
+          'Usuario registrado.\n\n' +
+          'Contraseña: ' +
+          respuesta.claveVisible
+        );
+      } else {
+        mostrarToast(respuesta.mensaje);
+      }
+
+      await cargarUsuarios();
+
+    } catch (error) {
+      userFormMessage.textContent = error.message;
+    } finally {
+      saveUserButton.disabled = false;
+      saveUserButton.textContent =
+        formUserId.value
+          ? 'Guardar cambios'
+          : 'Registrar usuario';
+    }
+  }
+
+  async function cambiarEstadoUsuario(usuario, nuevoEstado) {
+    const accion =
+      nuevoEstado === 'ACTIVO'
+        ? 'activar'
+        : 'inactivar';
+
+    const confirmado = window.confirm(
+      `¿Deseas ${accion} a ${usuario.nombresApellidos}?`
+    );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      const respuesta = await solicitarApi({
+        accion: 'cambiar_estado_usuario',
+        token: auth.token,
+        idUsuario: usuario.idUsuario,
+        estado: nuevoEstado
+      });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje || 'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(respuesta.mensaje);
+      await cargarUsuarios();
+
+    } catch (error) {
+      window.alert(error.message);
+    }
   }
 
   async function cambiarClaveManual(usuario) {
