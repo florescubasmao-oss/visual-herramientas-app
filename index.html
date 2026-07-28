@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.5.5">
+  <link rel="stylesheet" href="css/styles.css?v=0.6.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -261,6 +261,119 @@
 
 
 
+
+
+
+    <main id="warehousesView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backWarehousesButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Operación</p>
+            <h2>Gestión de almacenes</h2>
+            <p class="subtitle">
+              Almacenes, sedes, responsables y estado operativo.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="newWarehouseButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nuevo almacén
+          </button>
+
+          <button
+            id="refreshWarehousesButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="filters-card"
+        aria-label="Filtros de almacenes"
+      >
+        <div class="warehouse-filters-grid">
+          <div class="field-group">
+            <label for="warehouseSearch">Buscar</label>
+            <input
+              id="warehouseSearch"
+              type="search"
+              placeholder="Almacén o responsable"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="warehouseSiteFilter">Sede</label>
+            <select id="warehouseSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="warehouseStatusFilter">Estado</label>
+            <select id="warehouseStatusFilter">
+              <option value="">Todos</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div
+          id="warehousesLoading"
+          class="loading-state"
+        >
+          Selecciona Actualizar para cargar los almacenes.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="warehousesTable"
+            class="data-table warehouses-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Almacén</th>
+                <th>Sede</th>
+                <th>Responsable</th>
+                <th>Estado</th>
+                <th>Observaciones</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="warehousesTableBody"></tbody>
+          </table>
+        </div>
+
+        <p
+          id="warehousesEmpty"
+          class="empty-state"
+          hidden
+        >
+          No se encontraron almacenes con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="supervisorsView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -535,6 +648,101 @@
 
 
 
+
+
+
+  <div id="warehouseModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="warehouseModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Gestión de almacenes</p>
+          <h2 id="warehouseModalTitle">Nuevo almacén</h2>
+        </div>
+
+        <button
+          id="closeWarehouseModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="warehouseForm" class="user-form">
+        <input id="formWarehouseId" type="hidden">
+
+        <div class="form-grid">
+          <div class="field-group field-span-2">
+            <label for="formWarehouseName">Nombre del almacén</label>
+            <input
+              id="formWarehouseName"
+              type="text"
+              placeholder="Ejemplo: Almacén Chiclayo"
+              required
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formWarehouseSite">Sede</label>
+            <select id="formWarehouseSite" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formWarehouseResponsible">Responsable</label>
+            <select
+              id="formWarehouseResponsible"
+              required
+            ></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formWarehouseStatus">Estado</label>
+            <select id="formWarehouseStatus" required>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formWarehouseNotes">Observaciones</label>
+            <textarea
+              id="formWarehouseNotes"
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
+
+        <p
+          id="warehouseFormMessage"
+          class="form-message"
+        ></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelWarehouseFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveWarehouseButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Guardar almacén
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
 
   <div id="supervisorModal" class="modal-backdrop" hidden>
     <section
@@ -838,7 +1046,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.5.5"></script>
-  <script src="js/app.js?v=0.5.5"></script>
+  <script src="js/config.js?v=0.6.0"></script>
+  <script src="js/app.js?v=0.6.0"></script>
 </body>
 </html>

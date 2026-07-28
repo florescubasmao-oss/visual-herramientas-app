@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const warehousesView = document.getElementById('warehousesView');
   const supervisorsView = document.getElementById('supervisorsView');
   const crewsView = document.getElementById('crewsView');
   const usersView = document.getElementById('usersView');
@@ -25,6 +26,31 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backWarehousesButton = document.getElementById('backWarehousesButton');
+  const newWarehouseButton = document.getElementById('newWarehouseButton');
+  const refreshWarehousesButton = document.getElementById('refreshWarehousesButton');
+  const warehouseSearch = document.getElementById('warehouseSearch');
+  const warehouseSiteFilter = document.getElementById('warehouseSiteFilter');
+  const warehouseStatusFilter = document.getElementById('warehouseStatusFilter');
+  const warehousesLoading = document.getElementById('warehousesLoading');
+  const warehousesTable = document.getElementById('warehousesTable');
+  const warehousesTableBody = document.getElementById('warehousesTableBody');
+  const warehousesEmpty = document.getElementById('warehousesEmpty');
+
+  const warehouseModal = document.getElementById('warehouseModal');
+  const closeWarehouseModalButton = document.getElementById('closeWarehouseModalButton');
+  const cancelWarehouseFormButton = document.getElementById('cancelWarehouseFormButton');
+  const warehouseForm = document.getElementById('warehouseForm');
+  const warehouseModalTitle = document.getElementById('warehouseModalTitle');
+  const formWarehouseId = document.getElementById('formWarehouseId');
+  const formWarehouseName = document.getElementById('formWarehouseName');
+  const formWarehouseSite = document.getElementById('formWarehouseSite');
+  const formWarehouseResponsible = document.getElementById('formWarehouseResponsible');
+  const formWarehouseStatus = document.getElementById('formWarehouseStatus');
+  const formWarehouseNotes = document.getElementById('formWarehouseNotes');
+  const warehouseFormMessage = document.getElementById('warehouseFormMessage');
+  const saveWarehouseButton = document.getElementById('saveWarehouseButton');
 
   const backSupervisorsButton = document.getElementById('backSupervisorsButton');
   const newSupervisorButton = document.getElementById('newSupervisorButton');
@@ -122,6 +148,14 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let almacenes = [];
+  let puedeRegistrarAlmacenes = false;
+  let puedeEditarAlmacenes = false;
+  let catalogosAlmacenes = {
+    sedes: [],
+    estados: [],
+    responsables: []
+  };
   let supervisores = [];
   let puedeRegistrarSupervisores = false;
   let puedeEditarSupervisores = false;
@@ -160,6 +194,29 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backWarehousesButton.addEventListener('click', mostrarDashboard);
+    newWarehouseButton.addEventListener('click', abrirNuevoAlmacen);
+    refreshWarehousesButton.addEventListener('click', cargarAlmacenes);
+    closeWarehouseModalButton.addEventListener('click', cerrarFormularioAlmacen);
+    cancelWarehouseFormButton.addEventListener('click', cerrarFormularioAlmacen);
+    warehouseForm.addEventListener('submit', guardarAlmacen);
+    formWarehouseSite.addEventListener('change', actualizarResponsablesAlmacenFormulario);
+
+    warehouseModal.addEventListener('click', (event) => {
+      if (event.target === warehouseModal) {
+        cerrarFormularioAlmacen();
+      }
+    });
+
+    [
+      warehouseSearch,
+      warehouseSiteFilter,
+      warehouseStatusFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarAlmacenes);
+      control.addEventListener('change', renderizarAlmacenes);
+    });
+
     backSupervisorsButton.addEventListener('click', mostrarDashboard);
     newSupervisorButton.addEventListener('click', abrirNuevoSupervisor);
     refreshSupervisorsButton.addEventListener('click', cargarSupervisores);
@@ -452,6 +509,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'ALMACENES') {
+      abrirAlmacenes();
+      return;
+    }
+
     if (modulo === 'SUPERVISORES') {
       abrirSupervisores();
       return;
@@ -473,8 +535,671 @@
   }
 
 
+
+  async function abrirAlmacenes() {
+    dashboardView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    warehousesView.hidden = false;
+
+    await cargarAlmacenes();
+  }
+
+  async function cargarAlmacenes() {
+    warehousesLoading.hidden = false;
+    warehousesLoading.textContent = 'Cargando almacenes…';
+    warehousesTable.hidden = true;
+    warehousesEmpty.hidden = true;
+    refreshWarehousesButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_almacenes',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar los almacenes.'
+        );
+      }
+
+      almacenes =
+        Array.isArray(
+          respuesta.almacenes
+        )
+          ? respuesta.almacenes
+          : [];
+
+      puedeRegistrarAlmacenes =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarAlmacenes =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      catalogosAlmacenes =
+        respuesta.catalogos || {
+          sedes: [],
+          estados: [],
+          responsables: []
+        };
+
+      newWarehouseButton.hidden =
+        !puedeRegistrarAlmacenes;
+
+      actualizarCatalogosAlmacenes();
+      renderizarAlmacenes();
+      warehousesLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      warehousesLoading.hidden = false;
+      warehousesLoading.textContent = error.message;
+      warehousesTable.hidden = true;
+
+    } finally {
+      refreshWarehousesButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosAlmacenes() {
+    llenarSelectConTodos(
+      warehouseSiteFilter,
+      catalogosAlmacenes.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectFormulario(
+      formWarehouseSite,
+      catalogosAlmacenes.sedes || []
+    );
+
+    actualizarResponsablesAlmacenFormulario();
+  }
+
+  function actualizarResponsablesAlmacenFormulario(
+    responsableActual = ''
+  ) {
+    const sede =
+      String(
+        formWarehouseSite.value || ''
+      ).toUpperCase();
+
+    const actual =
+      responsableActual ||
+      formWarehouseResponsible.value;
+
+    const responsables =
+      Array.isArray(
+        catalogosAlmacenes.responsables
+      )
+        ? catalogosAlmacenes.responsables
+        : [];
+
+    const compatibles =
+      responsables.filter(
+        responsable => {
+          const sedeBase =
+            String(
+              responsable.sedeBase || ''
+            ).toUpperCase();
+
+          return (
+            !sede ||
+            !sedeBase ||
+            sedeBase === 'ZONA_NORTE' ||
+            sedeBase === sede
+          );
+        }
+      );
+
+    formWarehouseResponsible.innerHTML = '';
+
+    compatibles
+      .sort((a, b) =>
+        String(a.nombre || '')
+          .localeCompare(
+            String(b.nombre || ''),
+            'es'
+          )
+      )
+      .forEach(
+        responsable => {
+          const option =
+            document.createElement(
+              'option'
+            );
+
+          option.value =
+            responsable.nombre || '';
+
+          const sedeTexto =
+            responsable.sedeBase
+              ? ` · ${formatearTexto(
+                  responsable.sedeBase
+                )}`
+              : '';
+
+          option.textContent =
+            `${responsable.nombre}${sedeTexto}`;
+
+          formWarehouseResponsible
+            .appendChild(option);
+        }
+      );
+
+    if (
+      actual &&
+      !Array.from(
+        formWarehouseResponsible.options
+      ).some(
+        option =>
+          option.value === actual
+      )
+    ) {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        actual;
+
+      option.textContent =
+        actual;
+
+      formWarehouseResponsible
+        .appendChild(option);
+    }
+
+    if (
+      actual &&
+      Array.from(
+        formWarehouseResponsible.options
+      ).some(
+        option =>
+          option.value === actual
+      )
+    ) {
+      formWarehouseResponsible.value =
+        actual;
+    } else if (
+      formWarehouseResponsible.options.length
+    ) {
+      formWarehouseResponsible.selectedIndex =
+        0;
+    }
+  }
+
+  function renderizarAlmacenes() {
+    const texto =
+      normalizarBusqueda(
+        warehouseSearch.value
+      );
+
+    const sede =
+      String(
+        warehouseSiteFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        warehouseStatusFilter.value || ''
+      ).toUpperCase();
+
+    const filtrados =
+      almacenes.filter(
+        almacen => {
+          const coincideTexto =
+            !texto ||
+            normalizarBusqueda([
+              almacen.nombreAlmacen,
+              almacen.responsable,
+              almacen.idAlmacen,
+              almacen.observaciones
+            ].join(' ')).includes(
+              texto
+            );
+
+          const coincideSede =
+            !sede ||
+            String(
+              almacen.sede || ''
+            ).toUpperCase() === sede;
+
+          const coincideEstado =
+            !estado ||
+            String(
+              almacen.estado || ''
+            ).toUpperCase() === estado;
+
+          return (
+            coincideTexto &&
+            coincideSede &&
+            coincideEstado
+          );
+        }
+      );
+
+    warehousesTableBody.innerHTML = '';
+
+    filtrados.forEach(
+      almacen => {
+        warehousesTableBody.appendChild(
+          crearFilaAlmacen(
+            almacen
+          )
+        );
+      }
+    );
+
+    warehousesLoading.hidden = true;
+    warehousesTable.hidden =
+      filtrados.length === 0;
+    warehousesEmpty.hidden =
+      filtrados.length !== 0;
+  }
+
+  function crearFilaAlmacen(
+    almacen
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const celdaNombre =
+      document.createElement(
+        'td'
+      );
+
+    celdaNombre.className =
+      'warehouse-name-cell';
+
+    celdaNombre.innerHTML =
+      `<strong>${escaparHtml(
+        almacen.nombreAlmacen ||
+        'Sin nombre'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        almacen.idAlmacen || ''
+      )}</small>`;
+
+    fila.appendChild(
+      celdaNombre
+    );
+
+    fila.appendChild(
+      crearCelda(
+        formatearTexto(
+          almacen.sede
+        )
+      )
+    );
+
+    fila.appendChild(
+      crearCelda(
+        almacen.responsable ||
+        'Sin responsable'
+      )
+    );
+
+    const celdaEstado =
+      document.createElement(
+        'td'
+      );
+
+    const estado =
+      String(
+        almacen.estado || ''
+      ).toUpperCase();
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    insignia.className =
+      'status-badge ' +
+      (
+        estado === 'ACTIVO'
+          ? 'status-active'
+          : 'status-inactive'
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        estado ||
+        'Sin estado'
+      );
+
+    celdaEstado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      celdaEstado
+    );
+
+    const celdaObservaciones =
+      document.createElement(
+        'td'
+      );
+
+    celdaObservaciones.className =
+      'warehouse-notes';
+
+    celdaObservaciones.textContent =
+      almacen.observaciones ||
+      'Sin observaciones';
+
+    fila.appendChild(
+      celdaObservaciones
+    );
+
+    const celdaAcciones =
+      document.createElement(
+        'td'
+      );
+
+    celdaAcciones.className =
+      'actions-cell';
+
+    if (puedeEditarAlmacenes) {
+      const botonEditar =
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarAlmacen(
+              almacen
+            )
+        );
+
+      const nuevoEstado =
+        estado === 'ACTIVO'
+          ? 'INACTIVO'
+          : 'ACTIVO';
+
+      const botonEstado =
+        crearBotonAccion(
+          nuevoEstado === 'ACTIVO'
+            ? 'Activar'
+            : 'Inactivar',
+          () =>
+            cambiarEstadoAlmacen(
+              almacen,
+              nuevoEstado
+            )
+        );
+
+      celdaAcciones.appendChild(
+        botonEditar
+      );
+
+      celdaAcciones.appendChild(
+        botonEstado
+      );
+
+    } else {
+      celdaAcciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      celdaAcciones
+    );
+
+    return fila;
+  }
+
+  function abrirNuevoAlmacen() {
+    warehouseForm.reset();
+    formWarehouseId.value = '';
+    formWarehouseStatus.value = 'ACTIVO';
+    warehouseModalTitle.textContent =
+      'Nuevo almacén';
+    saveWarehouseButton.textContent =
+      'Registrar almacén';
+    warehouseFormMessage.textContent =
+      '';
+
+    actualizarCatalogosAlmacenes();
+
+    if (
+      formWarehouseSite.options.length
+    ) {
+      formWarehouseSite.selectedIndex =
+        0;
+    }
+
+    actualizarResponsablesAlmacenFormulario();
+
+    warehouseModal.hidden = false;
+    formWarehouseName.focus();
+  }
+
+  function abrirEditarAlmacen(
+    almacen
+  ) {
+    actualizarCatalogosAlmacenes();
+
+    formWarehouseId.value =
+      almacen.idAlmacen || '';
+
+    formWarehouseName.value =
+      almacen.nombreAlmacen || '';
+
+    formWarehouseSite.value =
+      String(
+        almacen.sede || ''
+      ).toUpperCase();
+
+    formWarehouseStatus.value =
+      String(
+        almacen.estado ||
+        'ACTIVO'
+      ).toUpperCase();
+
+    formWarehouseNotes.value =
+      almacen.observaciones || '';
+
+    actualizarResponsablesAlmacenFormulario(
+      almacen.responsable || ''
+    );
+
+    warehouseModalTitle.textContent =
+      'Editar almacén';
+
+    saveWarehouseButton.textContent =
+      'Guardar cambios';
+
+    warehouseFormMessage.textContent =
+      '';
+
+    warehouseModal.hidden = false;
+    formWarehouseName.focus();
+  }
+
+  function cerrarFormularioAlmacen() {
+    warehouseModal.hidden = true;
+    warehouseFormMessage.textContent = '';
+  }
+
+  async function guardarAlmacen(
+    event
+  ) {
+    event.preventDefault();
+    warehouseFormMessage.textContent =
+      '';
+
+    const payload = {
+      accion:
+        'guardar_almacen',
+      token:
+        auth.token,
+      idAlmacen:
+        formWarehouseId.value.trim(),
+      nombreAlmacen:
+        formWarehouseName.value.trim(),
+      sede:
+        formWarehouseSite.value,
+      responsable:
+        formWarehouseResponsible.value,
+      estado:
+        formWarehouseStatus.value,
+      observaciones:
+        formWarehouseNotes.value.trim()
+    };
+
+    if (
+      !payload.nombreAlmacen ||
+      !payload.sede ||
+      !payload.responsable
+    ) {
+      warehouseFormMessage.textContent =
+        'Completa los campos obligatorios.';
+      return;
+    }
+
+    saveWarehouseButton.disabled = true;
+    saveWarehouseButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar el almacén.'
+        );
+      }
+
+      if (respuesta.almacen) {
+        incorporarAlmacenLocal(
+          respuesta.almacen
+        );
+      }
+
+      cerrarFormularioAlmacen();
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarAlmacenes();
+
+    } catch (error) {
+      warehouseFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveWarehouseButton.disabled =
+        false;
+
+      saveWarehouseButton.textContent =
+        formWarehouseId.value
+          ? 'Guardar cambios'
+          : 'Registrar almacén';
+    }
+  }
+
+  function incorporarAlmacenLocal(
+    almacen
+  ) {
+    const id =
+      String(
+        almacen.idAlmacen || ''
+      );
+
+    const indice =
+      almacenes.findIndex(
+        item =>
+          String(
+            item.idAlmacen || ''
+          ) === id
+      );
+
+    if (indice === -1) {
+      almacenes.unshift(
+        almacen
+      );
+    } else {
+      almacenes[indice] = {
+        ...almacenes[indice],
+        ...almacen
+      };
+    }
+
+    renderizarAlmacenes();
+  }
+
+  async function cambiarEstadoAlmacen(
+    almacen,
+    estado
+  ) {
+    const accion =
+      estado === 'ACTIVO'
+        ? 'activar'
+        : 'inactivar';
+
+    const confirmado =
+      window.confirm(
+        `¿Deseas ${accion} el almacén ` +
+        `${almacen.nombreAlmacen}?`
+      );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_almacen',
+          token:
+            auth.token,
+          idAlmacen:
+            almacen.idAlmacen,
+          estado:
+            estado
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarAlmacenes();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    warehousesView.hidden = true;
     crewsView.hidden = true;
     usersView.hidden = true;
     supervisorsView.hidden = false;
@@ -1288,6 +2013,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    warehousesView.hidden = true;
     supervisorsView.hidden = true;
     usersView.hidden = true;
     crewsView.hidden = false;
@@ -1952,6 +2678,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    warehousesView.hidden = true;
     supervisorsView.hidden = true;
     crewsView.hidden = true;
     usersView.hidden = false;
@@ -1959,6 +2686,7 @@
   }
 
   function mostrarDashboard() {
+    warehousesView.hidden = true;
     supervisorsView.hidden = true;
     crewsView.hidden = true;
     usersView.hidden = true;
@@ -2477,6 +3205,7 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    almacenes = [];
     supervisores = [];
     cuadrillas = [];
     usuarios = [];

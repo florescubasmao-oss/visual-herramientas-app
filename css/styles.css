@@ -809,3 +809,37 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.warehouse-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(2, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.warehouses-table {
+  min-width: 900px;
+}
+
+.warehouse-name-cell strong,
+.warehouse-name-cell small {
+  display: block;
+}
+
+.warehouse-name-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.warehouse-notes {
+  max-width: 300px;
+  white-space: normal;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 850px) {
+  .warehouse-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}
