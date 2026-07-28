@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const alertsView = document.getElementById('alertsView');
   const bajasView = document.getElementById('bajasView');
   const maintenanceView = document.getElementById('maintenanceView');
   const inventoriesView = document.getElementById('inventoriesView');
@@ -34,6 +35,23 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backAlertsButton = document.getElementById('backAlertsButton');
+  const downloadAlertsButton = document.getElementById('downloadAlertsButton');
+  const refreshAlertsButton = document.getElementById('refreshAlertsButton');
+  const alertSearch = document.getElementById('alertSearch');
+  const alertSiteFilter = document.getElementById('alertSiteFilter');
+  const alertSourceFilter = document.getElementById('alertSourceFilter');
+  const alertPriorityFilter = document.getElementById('alertPriorityFilter');
+  const alertSituationFilter = document.getElementById('alertSituationFilter');
+  const alertsLoading = document.getElementById('alertsLoading');
+  const alertsTable = document.getElementById('alertsTable');
+  const alertsTableBody = document.getElementById('alertsTableBody');
+  const alertsEmpty = document.getElementById('alertsEmpty');
+  const alertSummaryTotal = document.getElementById('alertSummaryTotal');
+  const alertSummaryCritical = document.getElementById('alertSummaryCritical');
+  const alertSummaryHigh = document.getElementById('alertSummaryHigh');
+  const alertSummaryOverdue = document.getElementById('alertSummaryOverdue');
 
   const backBajasButton = document.getElementById('backBajasButton');
   const downloadBajasButton = document.getElementById('downloadBajasButton');
@@ -462,6 +480,15 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let alertas = [];
+  let alertasFiltradas = [];
+  let puedeDescargarAlertas = false;
+  let catalogosAlertas = {
+    sedes: [],
+    fuentes: [],
+    prioridades: [],
+    situaciones: []
+  };
   let bajas = [];
   let bajasFiltradas = [];
   let puedeRegistrarBajas = false;
@@ -612,6 +639,21 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backAlertsButton.addEventListener('click', mostrarDashboard);
+    refreshAlertsButton.addEventListener('click', cargarAlertas);
+    downloadAlertsButton.addEventListener('click', descargarAlertasCsv);
+
+    [
+      alertSearch,
+      alertSiteFilter,
+      alertSourceFilter,
+      alertPriorityFilter,
+      alertSituationFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarAlertas);
+      control.addEventListener('change', renderizarAlertas);
+    });
+
     backBajasButton.addEventListener('click', mostrarDashboard);
     newBajaButton.addEventListener('click', abrirNuevaBaja);
     refreshBajasButton.addEventListener('click', cargarBajas);
@@ -1149,6 +1191,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'ALERTAS') {
+      abrirAlertas();
+      return;
+    }
+
     if (modulo === 'BAJAS') {
       abrirBajas();
       return;
@@ -1224,8 +1271,627 @@
 
 
 
+
+  async function abrirAlertas() {
+    dashboardView.hidden = true;
+    bajasView.hidden = true;
+    maintenanceView.hidden = true;
+    inventoriesView.hidden = true;
+    cargosView.hidden = true;
+    stockView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    alertsView.hidden = false;
+
+    await cargarAlertas();
+  }
+
+  async function cargarAlertas() {
+    alertsLoading.hidden = false;
+    alertsLoading.textContent = 'Generando alertas del sistema…';
+    alertsTable.hidden = true;
+    alertsEmpty.hidden = true;
+    refreshAlertsButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_alertas',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron generar las alertas.'
+        );
+      }
+
+      alertas =
+        Array.isArray(
+          respuesta.alertas
+        )
+          ? respuesta.alertas
+          : [];
+
+      puedeDescargarAlertas =
+        Boolean(
+          respuesta.puedeDescargar
+        );
+
+      catalogosAlertas =
+        respuesta.catalogos || {
+          sedes: [],
+          fuentes: [],
+          prioridades: [],
+          situaciones: []
+        };
+
+      downloadAlertsButton.hidden =
+        !puedeDescargarAlertas;
+
+      actualizarCatalogosAlertas();
+      renderizarAlertas();
+      alertsLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      alertsLoading.hidden = false;
+      alertsLoading.textContent = error.message;
+      alertsTable.hidden = true;
+
+    } finally {
+      refreshAlertsButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosAlertas() {
+    llenarSelectConTodos(
+      alertSiteFilter,
+      catalogosAlertas.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      alertSourceFilter,
+      catalogosAlertas.fuentes || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      alertPriorityFilter,
+      catalogosAlertas.prioridades || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      alertSituationFilter,
+      catalogosAlertas.situaciones || [],
+      'Todas'
+    );
+  }
+
+  function renderizarAlertas() {
+    const texto =
+      normalizarBusqueda(
+        alertSearch.value
+      );
+
+    const sede =
+      String(
+        alertSiteFilter.value || ''
+      ).toUpperCase();
+
+    const fuente =
+      String(
+        alertSourceFilter.value || ''
+      ).toUpperCase();
+
+    const prioridad =
+      String(
+        alertPriorityFilter.value || ''
+      ).toUpperCase();
+
+    const situacion =
+      String(
+        alertSituationFilter.value || ''
+      ).toUpperCase();
+
+    alertasFiltradas =
+      alertas.filter(alerta => {
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            alerta.idAlerta,
+            alerta.titulo,
+            alerta.detalle,
+            alerta.fuente,
+            alerta.referencia,
+            alerta.sede,
+            alerta.responsable,
+            alerta.codigoInterno,
+            alerta.tipoHerramienta,
+            alerta.datoAdicional,
+            alerta.accionRecomendada
+          ].join(' ')).includes(
+            texto
+          );
+
+        const coincideSede =
+          !sede ||
+          alerta.sede === sede;
+
+        const coincideFuente =
+          !fuente ||
+          alerta.fuente === fuente;
+
+        const coincidePrioridad =
+          !prioridad ||
+          alerta.prioridad ===
+            prioridad;
+
+        const coincideSituacion =
+          !situacion ||
+          alerta.situacion ===
+            situacion;
+
+        return (
+          coincideTexto &&
+          coincideSede &&
+          coincideFuente &&
+          coincidePrioridad &&
+          coincideSituacion
+        );
+      });
+
+    alertsTableBody.innerHTML = '';
+
+    alertasFiltradas.forEach(alerta => {
+      alertsTableBody.appendChild(
+        crearFilaAlerta(
+          alerta
+        )
+      );
+    });
+
+    alertSummaryTotal.textContent =
+      String(
+        alertasFiltradas.length
+      );
+
+    alertSummaryCritical.textContent =
+      String(
+        alertasFiltradas.filter(item =>
+          item.prioridad ===
+          'CRITICA'
+        ).length
+      );
+
+    alertSummaryHigh.textContent =
+      String(
+        alertasFiltradas.filter(item =>
+          item.prioridad ===
+          'ALTA'
+        ).length
+      );
+
+    alertSummaryOverdue.textContent =
+      String(
+        alertasFiltradas.filter(item =>
+          item.vencida === true ||
+          item.situacion ===
+            'VENCIDA'
+        ).length
+      );
+
+    alertsLoading.hidden = true;
+    alertsTable.hidden =
+      alertasFiltradas.length === 0;
+    alertsEmpty.hidden =
+      alertasFiltradas.length !== 0;
+  }
+
+  function crearFilaAlerta(
+    alerta
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const prioridad =
+      document.createElement(
+        'td'
+      );
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    const clasePrioridad = {
+      CRITICA:
+        'alert-priority-critical',
+      ALTA:
+        'alert-priority-high',
+      MEDIA:
+        'alert-priority-medium',
+      BAJA:
+        'alert-priority-low'
+    };
+
+    insignia.className =
+      'alert-priority ' +
+      (
+        clasePrioridad[
+          alerta.prioridad
+        ] ||
+        'alert-priority-medium'
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        alerta.prioridad
+      );
+
+    prioridad.appendChild(
+      insignia
+    );
+
+    const situacion =
+      document.createElement(
+        'span'
+      );
+
+    situacion.className =
+      'alert-situation';
+
+    situacion.textContent =
+      formatearTexto(
+        alerta.situacion
+      );
+
+    prioridad.appendChild(
+      situacion
+    );
+
+    fila.appendChild(
+      prioridad
+    );
+
+    const principal =
+      document.createElement(
+        'td'
+      );
+
+    principal.className =
+      'alert-main-cell';
+
+    principal.innerHTML =
+      `<strong>${escaparHtml(
+        alerta.titulo ||
+        'Alerta'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        alerta.detalle ||
+        'Sin detalle'
+      )}</small>`;
+
+    if (
+      alerta.codigoInterno ||
+      alerta.tipoHerramienta
+    ) {
+      const codigo =
+        document.createElement(
+          'span'
+        );
+
+      codigo.className =
+        'alert-reference';
+
+      codigo.textContent =
+        [
+          alerta.codigoInterno,
+          alerta.tipoHerramienta
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+      principal.appendChild(
+        codigo
+      );
+    }
+
+    fila.appendChild(
+      principal
+    );
+
+    const fuente =
+      document.createElement(
+        'td'
+      );
+
+    fuente.className =
+      'alert-source-cell';
+
+    fuente.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          alerta.fuente
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        alerta.datoAdicional
+          ? formatearTexto(
+              alerta.datoAdicional
+            )
+          : ''
+      )}</small>` +
+      `<span class="alert-reference">${escaparHtml(
+        alerta.referencia ||
+        alerta.idAlerta
+      )}</span>`;
+
+    fila.appendChild(
+      fuente
+    );
+
+    const responsable =
+      document.createElement(
+        'td'
+      );
+
+    responsable.className =
+      'alert-owner-cell';
+
+    responsable.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          alerta.sede
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        alerta.responsable ||
+        'Sin responsable'
+      )}</small>`;
+
+    fila.appendChild(
+      responsable
+    );
+
+    const fecha =
+      document.createElement(
+        'td'
+      );
+
+    fecha.className =
+      'alert-date-cell';
+
+    fecha.innerHTML =
+      `<strong class="${alerta.vencida ? 'alert-overdue-text' : ''}">${escaparHtml(
+        alerta.fechaReferencia ||
+        'Sin fecha'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        formatearPlazoAlerta(
+          alerta
+        )
+      )}</small>`;
+
+    fila.appendChild(
+      fecha
+    );
+
+    const accion =
+      document.createElement(
+        'td'
+      );
+
+    accion.className =
+      'alert-action-text';
+
+    accion.textContent =
+      alerta.accionRecomendada ||
+      'Revisar el registro de origen.';
+
+    fila.appendChild(
+      accion
+    );
+
+    const acciones =
+      document.createElement(
+        'td'
+      );
+
+    acciones.className =
+      'actions-cell';
+
+    const botonModulo =
+      obtenerBotonModulo(
+        alerta.modulo
+      );
+
+    if (
+      botonModulo &&
+      !botonModulo.hidden
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Abrir módulo',
+          () =>
+            abrirModuloDesdeAlerta(
+              alerta.modulo
+            )
+        )
+      );
+
+    } else {
+      acciones.textContent =
+        'Solo seguimiento';
+    }
+
+    fila.appendChild(
+      acciones
+    );
+
+    return fila;
+  }
+
+  function formatearPlazoAlerta(
+    alerta
+  ) {
+    const dias =
+      Number(
+        alerta.dias || 0
+      );
+
+    if (
+      alerta.situacion ===
+        'PROXIMA'
+    ) {
+      if (dias === 0) {
+        return 'Corresponde hoy';
+      }
+
+      return (
+        'Faltan ' +
+        dias +
+        (
+          dias === 1
+            ? ' día'
+            : ' días'
+        )
+      );
+    }
+
+    if (
+      alerta.vencida ||
+      alerta.situacion ===
+        'VENCIDA'
+    ) {
+      if (dias === 0) {
+        return 'Vence hoy';
+      }
+
+      return (
+        dias +
+        (
+          dias === 1
+            ? ' día vencida'
+            : ' días vencida'
+        )
+      );
+    }
+
+    if (dias > 0) {
+      return (
+        dias +
+        (
+          dias === 1
+            ? ' día pendiente'
+            : ' días pendiente'
+        )
+      );
+    }
+
+    return 'Revisión inmediata';
+  }
+
+  function obtenerBotonModulo(
+    modulo
+  ) {
+    return document.querySelector(
+      `[data-module="${String(
+        modulo || ''
+      ).toUpperCase()}"]`
+    );
+  }
+
+  function abrirModuloDesdeAlerta(
+    modulo
+  ) {
+    const boton =
+      obtenerBotonModulo(
+        modulo
+      );
+
+    if (
+      !boton ||
+      boton.hidden
+    ) {
+      mostrarToast(
+        'Tu perfil no tiene acceso al módulo de origen.'
+      );
+
+      return;
+    }
+
+    abrirModulo(
+      boton
+    );
+  }
+
+  function descargarAlertasCsv() {
+    const encabezados = [
+      'ID_ALERTA',
+      'PRIORIDAD',
+      'SITUACION',
+      'FUENTE',
+      'MODULO',
+      'REFERENCIA',
+      'TITULO',
+      'DETALLE',
+      'SEDE',
+      'RESPONSABLE',
+      'FECHA_REFERENCIA',
+      'DIAS',
+      'VENCIDA',
+      'CODIGO_INTERNO',
+      'TIPO_HERRAMIENTA',
+      'DATO_ADICIONAL',
+      'ACCION_RECOMENDADA'
+    ];
+
+    const filas =
+      alertasFiltradas.map(item => [
+        item.idAlerta,
+        item.prioridad,
+        item.situacion,
+        item.fuente,
+        item.modulo,
+        item.referencia,
+        item.titulo,
+        item.detalle,
+        item.sede,
+        item.responsable,
+        item.fechaReferencia,
+        item.dias,
+        item.vencida
+          ? 'SI'
+          : 'NO',
+        item.codigoInterno,
+        item.tipoHerramienta,
+        item.datoAdicional,
+        item.accionRecomendada
+      ]);
+
+    descargarCsvGenerico(
+      `alertas_${new Date().toISOString().slice(0, 10)}.csv`,
+      encabezados,
+      filas
+    );
+  }
+
   async function abrirBajas() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -2323,6 +2989,7 @@
 
   async function abrirMantenimientos() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -3502,6 +4169,7 @@
 
   async function abrirInventarios() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     cargosView.hidden = true;
@@ -5024,6 +5692,7 @@
 
   async function abrirCargos() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -6359,6 +7028,7 @@
 
   async function abrirStockActual() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -7054,6 +7724,7 @@
 
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -8592,6 +9263,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -9591,6 +10263,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -10427,6 +11100,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -11096,6 +11770,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -11918,6 +12593,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -12591,6 +13267,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -12607,6 +13284,7 @@
   }
 
   function mostrarDashboard() {
+    alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -13134,6 +13812,8 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    alertas = [];
+    alertasFiltradas = [];
     bajas = [];
     bajasFiltradas = [];
     mantenimientos = [];

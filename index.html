@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.14.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.15.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -279,6 +279,144 @@
 
 
 
+
+
+
+    <main id="alertsView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backAlertsButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Seguimiento</p>
+            <h2>Alertas</h2>
+            <p class="subtitle">
+              Pendientes, vencimientos, diferencias e inconsistencias detectadas automáticamente.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="downloadAlertsButton"
+            class="secondary-button"
+            type="button"
+            hidden
+          >
+            Descargar CSV
+          </button>
+
+          <button
+            id="refreshAlertsButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="alert-summary-grid">
+        <article class="alert-summary-card">
+          <span>Total visible</span>
+          <strong id="alertSummaryTotal">0</strong>
+        </article>
+
+        <article class="alert-summary-card alert-summary-critical">
+          <span>Críticas</span>
+          <strong id="alertSummaryCritical">0</strong>
+        </article>
+
+        <article class="alert-summary-card alert-summary-high">
+          <span>Altas</span>
+          <strong id="alertSummaryHigh">0</strong>
+        </article>
+
+        <article class="alert-summary-card">
+          <span>Vencidas</span>
+          <strong id="alertSummaryOverdue">0</strong>
+        </article>
+      </section>
+
+      <section class="filters-card">
+        <div class="alert-filters-grid">
+          <div class="field-group">
+            <label for="alertSearch">Buscar</label>
+            <input
+              id="alertSearch"
+              type="search"
+              placeholder="Alerta, referencia, herramienta o responsable"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="alertSiteFilter">Sede</label>
+            <select id="alertSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="alertSourceFilter">Fuente</label>
+            <select id="alertSourceFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="alertPriorityFilter">Prioridad</label>
+            <select id="alertPriorityFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="alertSituationFilter">Situación</label>
+            <select id="alertSituationFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="alertsLoading" class="loading-state">
+          Selecciona Actualizar para generar las alertas.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="alertsTable"
+            class="data-table alerts-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Prioridad</th>
+                <th>Alerta</th>
+                <th>Fuente / referencia</th>
+                <th>Sede / responsable</th>
+                <th>Fecha / plazo</th>
+                <th>Acción recomendada</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="alertsTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="alertsEmpty" class="empty-state" hidden>
+          No existen alertas con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="bajasView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -3257,7 +3395,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.14.0"></script>
-  <script src="js/app.js?v=0.14.0"></script>
+  <script src="js/config.js?v=0.15.0"></script>
+  <script src="js/app.js?v=0.15.0"></script>
 </body>
 </html>
