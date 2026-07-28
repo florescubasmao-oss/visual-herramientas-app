@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const catalogView = document.getElementById('catalogView');
   const warehousesView = document.getElementById('warehousesView');
   const supervisorsView = document.getElementById('supervisorsView');
   const crewsView = document.getElementById('crewsView');
@@ -26,6 +27,36 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backCatalogButton = document.getElementById('backCatalogButton');
+  const newCatalogButton = document.getElementById('newCatalogButton');
+  const refreshCatalogButton = document.getElementById('refreshCatalogButton');
+  const catalogSearch = document.getElementById('catalogSearch');
+  const catalogCategoryFilter = document.getElementById('catalogCategoryFilter');
+  const catalogControlFilter = document.getElementById('catalogControlFilter');
+  const catalogSeriesFilter = document.getElementById('catalogSeriesFilter');
+  const catalogStatusFilter = document.getElementById('catalogStatusFilter');
+  const catalogLoading = document.getElementById('catalogLoading');
+  const catalogTable = document.getElementById('catalogTable');
+  const catalogTableBody = document.getElementById('catalogTableBody');
+  const catalogEmpty = document.getElementById('catalogEmpty');
+
+  const catalogModal = document.getElementById('catalogModal');
+  const closeCatalogModalButton = document.getElementById('closeCatalogModalButton');
+  const cancelCatalogFormButton = document.getElementById('cancelCatalogFormButton');
+  const catalogForm = document.getElementById('catalogForm');
+  const catalogModalTitle = document.getElementById('catalogModalTitle');
+  const formCatalogId = document.getElementById('formCatalogId');
+  const formCatalogName = document.getElementById('formCatalogName');
+  const formCatalogCategory = document.getElementById('formCatalogCategory');
+  const catalogCategoriesList = document.getElementById('catalogCategoriesList');
+  const formCatalogControl = document.getElementById('formCatalogControl');
+  const formCatalogUnit = document.getElementById('formCatalogUnit');
+  const formCatalogSeries = document.getElementById('formCatalogSeries');
+  const formCatalogStatus = document.getElementById('formCatalogStatus');
+  const formCatalogNotes = document.getElementById('formCatalogNotes');
+  const catalogFormMessage = document.getElementById('catalogFormMessage');
+  const saveCatalogButton = document.getElementById('saveCatalogButton');
 
   const backWarehousesButton = document.getElementById('backWarehousesButton');
   const newWarehouseButton = document.getElementById('newWarehouseButton');
@@ -148,6 +179,16 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let tiposCatalogo = [];
+  let puedeRegistrarCatalogo = false;
+  let puedeEditarCatalogo = false;
+  let catalogosTipoHerramienta = {
+    categorias: [],
+    tiposControl: [],
+    requiereSerie: [],
+    unidades: [],
+    estados: []
+  };
   let almacenes = [];
   let puedeRegistrarAlmacenes = false;
   let puedeEditarAlmacenes = false;
@@ -194,6 +235,32 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backCatalogButton.addEventListener('click', mostrarDashboard);
+    newCatalogButton.addEventListener('click', abrirNuevoTipoCatalogo);
+    refreshCatalogButton.addEventListener('click', cargarCatalogoHerramientas);
+    closeCatalogModalButton.addEventListener('click', cerrarFormularioCatalogo);
+    cancelCatalogFormButton.addEventListener('click', cerrarFormularioCatalogo);
+    catalogForm.addEventListener('submit', guardarTipoCatalogo);
+    formCatalogControl.addEventListener('change', ajustarControlCatalogo);
+    formCatalogSeries.addEventListener('change', ajustarSerieCatalogo);
+
+    catalogModal.addEventListener('click', (event) => {
+      if (event.target === catalogModal) {
+        cerrarFormularioCatalogo();
+      }
+    });
+
+    [
+      catalogSearch,
+      catalogCategoryFilter,
+      catalogControlFilter,
+      catalogSeriesFilter,
+      catalogStatusFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarCatalogo);
+      control.addEventListener('change', renderizarCatalogo);
+    });
+
     backWarehousesButton.addEventListener('click', mostrarDashboard);
     newWarehouseButton.addEventListener('click', abrirNuevoAlmacen);
     refreshWarehousesButton.addEventListener('click', cargarAlmacenes);
@@ -509,6 +576,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'CATALOGO') {
+      abrirCatalogoHerramientas();
+      return;
+    }
+
     if (modulo === 'ALMACENES') {
       abrirAlmacenes();
       return;
@@ -536,8 +608,839 @@
 
 
 
+
+  async function abrirCatalogoHerramientas() {
+    dashboardView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    catalogView.hidden = false;
+
+    await cargarCatalogoHerramientas();
+  }
+
+  async function cargarCatalogoHerramientas() {
+    catalogLoading.hidden = false;
+    catalogLoading.textContent = 'Cargando catálogo…';
+    catalogTable.hidden = true;
+    catalogEmpty.hidden = true;
+    refreshCatalogButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_catalogo_herramientas',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cargar el catálogo.'
+        );
+      }
+
+      tiposCatalogo =
+        Array.isArray(
+          respuesta.tipos
+        )
+          ? respuesta.tipos
+          : [];
+
+      puedeRegistrarCatalogo =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarCatalogo =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      catalogosTipoHerramienta =
+        respuesta.catalogos || {
+          categorias: [],
+          tiposControl: [],
+          requiereSerie: [],
+          unidades: [],
+          estados: []
+        };
+
+      newCatalogButton.hidden =
+        !puedeRegistrarCatalogo;
+
+      actualizarCatalogosTipoHerramienta();
+      renderizarCatalogo();
+      catalogLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      catalogLoading.hidden = false;
+      catalogLoading.textContent = error.message;
+      catalogTable.hidden = true;
+
+    } finally {
+      refreshCatalogButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosTipoHerramienta() {
+    llenarSelectConTodos(
+      catalogCategoryFilter,
+      catalogosTipoHerramienta.categorias || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      catalogControlFilter,
+      catalogosTipoHerramienta.tiposControl || [],
+      'Todos'
+    );
+
+    llenarSelectFormulario(
+      formCatalogControl,
+      catalogosTipoHerramienta.tiposControl || [
+        'UNITARIO',
+        'CANTIDAD'
+      ]
+    );
+
+    llenarSelectFormulario(
+      formCatalogUnit,
+      catalogosTipoHerramienta.unidades || [
+        'UNIDAD',
+        'PAR'
+      ]
+    );
+
+    catalogCategoriesList.innerHTML = '';
+
+    (
+      catalogosTipoHerramienta.categorias || []
+    ).forEach(
+      categoria => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          categoria;
+
+        catalogCategoriesList
+          .appendChild(
+            option
+          );
+      }
+    );
+  }
+
+  function renderizarCatalogo() {
+    const texto =
+      normalizarBusqueda(
+        catalogSearch.value
+      );
+
+    const categoria =
+      String(
+        catalogCategoryFilter.value || ''
+      ).toUpperCase();
+
+    const control =
+      String(
+        catalogControlFilter.value || ''
+      ).toUpperCase();
+
+    const serie =
+      String(
+        catalogSeriesFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        catalogStatusFilter.value || ''
+      ).toUpperCase();
+
+    const filtrados =
+      tiposCatalogo.filter(
+        tipo => {
+          const coincideTexto =
+            !texto ||
+            normalizarBusqueda([
+              tipo.idTipo,
+              tipo.tipoHerramienta,
+              tipo.categoria,
+              tipo.observaciones
+            ].join(' ')).includes(
+              texto
+            );
+
+          const coincideCategoria =
+            !categoria ||
+            String(
+              tipo.categoria || ''
+            ).toUpperCase() ===
+              categoria;
+
+          const coincideControl =
+            !control ||
+            String(
+              tipo.tipoControl || ''
+            ).toUpperCase() ===
+              control;
+
+          const coincideSerie =
+            !serie ||
+            String(
+              tipo.requiereSerie || ''
+            ).toUpperCase() ===
+              serie;
+
+          const coincideEstado =
+            !estado ||
+            String(
+              tipo.estado || ''
+            ).toUpperCase() ===
+              estado;
+
+          return (
+            coincideTexto &&
+            coincideCategoria &&
+            coincideControl &&
+            coincideSerie &&
+            coincideEstado
+          );
+        }
+      );
+
+    catalogTableBody.innerHTML = '';
+
+    filtrados.forEach(
+      tipo => {
+        catalogTableBody.appendChild(
+          crearFilaCatalogo(
+            tipo
+          )
+        );
+      }
+    );
+
+    catalogLoading.hidden = true;
+    catalogTable.hidden =
+      filtrados.length === 0;
+    catalogEmpty.hidden =
+      filtrados.length !== 0;
+  }
+
+  function crearFilaCatalogo(
+    tipo
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const celdaNombre =
+      document.createElement(
+        'td'
+      );
+
+    celdaNombre.className =
+      'catalog-name-cell';
+
+    celdaNombre.innerHTML =
+      `<strong>${escaparHtml(
+        tipo.tipoHerramienta ||
+        'Sin nombre'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        tipo.idTipo || ''
+      )}</small>`;
+
+    fila.appendChild(
+      celdaNombre
+    );
+
+    fila.appendChild(
+      crearCelda(
+        formatearTexto(
+          tipo.categoria
+        )
+      )
+    );
+
+    const celdaControl =
+      document.createElement(
+        'td'
+      );
+
+    const control =
+      String(
+        tipo.tipoControl || ''
+      ).toUpperCase();
+
+    const insigniaControl =
+      document.createElement(
+        'span'
+      );
+
+    insigniaControl.className =
+      'control-badge ' +
+      (
+        control === 'UNITARIO'
+          ? 'control-unitario'
+          : 'control-cantidad'
+      );
+
+    insigniaControl.textContent =
+      formatearTexto(
+        control
+      );
+
+    celdaControl.appendChild(
+      insigniaControl
+    );
+
+    fila.appendChild(
+      celdaControl
+    );
+
+    const celdaSerie =
+      document.createElement(
+        'td'
+      );
+
+    const requiereSerie =
+      String(
+        tipo.requiereSerie || 'NO'
+      ).toUpperCase();
+
+    const insigniaSerie =
+      document.createElement(
+        'span'
+      );
+
+    insigniaSerie.className =
+      'series-badge ' +
+      (
+        requiereSerie === 'SI'
+          ? 'series-yes'
+          : 'series-no'
+      );
+
+    insigniaSerie.textContent =
+      requiereSerie === 'SI'
+        ? 'Sí'
+        : 'No';
+
+    celdaSerie.appendChild(
+      insigniaSerie
+    );
+
+    fila.appendChild(
+      celdaSerie
+    );
+
+    const celdaUnidad =
+      document.createElement(
+        'td'
+      );
+
+    const insigniaUnidad =
+      document.createElement(
+        'span'
+      );
+
+    insigniaUnidad.className =
+      'unit-badge';
+
+    insigniaUnidad.textContent =
+      formatearTexto(
+        tipo.unidadMedida
+      );
+
+    celdaUnidad.appendChild(
+      insigniaUnidad
+    );
+
+    fila.appendChild(
+      celdaUnidad
+    );
+
+    const celdaEstado =
+      document.createElement(
+        'td'
+      );
+
+    const estado =
+      String(
+        tipo.estado || ''
+      ).toUpperCase();
+
+    const insigniaEstado =
+      document.createElement(
+        'span'
+      );
+
+    insigniaEstado.className =
+      'status-badge ' +
+      (
+        estado === 'ACTIVO'
+          ? 'status-active'
+          : 'status-inactive'
+      );
+
+    insigniaEstado.textContent =
+      formatearTexto(
+        estado ||
+        'Sin estado'
+      );
+
+    celdaEstado.appendChild(
+      insigniaEstado
+    );
+
+    fila.appendChild(
+      celdaEstado
+    );
+
+    const uso =
+      tipo.uso || {};
+
+    const celdaUso =
+      document.createElement(
+        'td'
+      );
+
+    celdaUso.className =
+      'catalog-usage-cell';
+
+    celdaUso.innerHTML =
+      `<strong>${Number(
+        uso.herramientas || 0
+      )} herramientas</strong>` +
+      `<small>${Number(
+        uso.stockCantidad || 0
+      )} en stock · ${Number(
+        uso.movimientos || 0
+      )} movimientos</small>`;
+
+    fila.appendChild(
+      celdaUso
+    );
+
+    const celdaAcciones =
+      document.createElement(
+        'td'
+      );
+
+    celdaAcciones.className =
+      'actions-cell';
+
+    if (puedeEditarCatalogo) {
+      const botonEditar =
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarTipoCatalogo(
+              tipo
+            )
+        );
+
+      const nuevoEstado =
+        estado === 'ACTIVO'
+          ? 'INACTIVO'
+          : 'ACTIVO';
+
+      const botonEstado =
+        crearBotonAccion(
+          nuevoEstado === 'ACTIVO'
+            ? 'Activar'
+            : 'Inactivar',
+          () =>
+            cambiarEstadoTipoCatalogo(
+              tipo,
+              nuevoEstado
+            )
+        );
+
+      celdaAcciones.appendChild(
+        botonEditar
+      );
+
+      celdaAcciones.appendChild(
+        botonEstado
+      );
+
+    } else {
+      celdaAcciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      celdaAcciones
+    );
+
+    return fila;
+  }
+
+  function abrirNuevoTipoCatalogo() {
+    catalogForm.reset();
+    formCatalogId.value = '';
+    formCatalogStatus.value = 'ACTIVO';
+    formCatalogSeries.value = 'NO';
+    catalogModalTitle.textContent =
+      'Nuevo tipo de herramienta';
+    saveCatalogButton.textContent =
+      'Registrar tipo';
+    catalogFormMessage.textContent =
+      '';
+
+    actualizarCatalogosTipoHerramienta();
+
+    if (
+      formCatalogControl.options.length
+    ) {
+      formCatalogControl.value =
+        'UNITARIO';
+    }
+
+    ajustarControlCatalogo();
+
+    catalogModal.hidden = false;
+    formCatalogName.focus();
+  }
+
+  function abrirEditarTipoCatalogo(
+    tipo
+  ) {
+    actualizarCatalogosTipoHerramienta();
+
+    formCatalogId.value =
+      tipo.idTipo || '';
+
+    formCatalogName.value =
+      tipo.tipoHerramienta || '';
+
+    formCatalogCategory.value =
+      tipo.categoria || '';
+
+    asegurarOpcionSelect(
+      formCatalogControl,
+      tipo.tipoControl
+    );
+
+    formCatalogControl.value =
+      String(
+        tipo.tipoControl || ''
+      ).toUpperCase();
+
+    asegurarOpcionSelect(
+      formCatalogUnit,
+      tipo.unidadMedida
+    );
+
+    formCatalogUnit.value =
+      String(
+        tipo.unidadMedida || ''
+      ).toUpperCase();
+
+    formCatalogSeries.value =
+      String(
+        tipo.requiereSerie ||
+        'NO'
+      ).toUpperCase();
+
+    formCatalogStatus.value =
+      String(
+        tipo.estado ||
+        'ACTIVO'
+      ).toUpperCase();
+
+    formCatalogNotes.value =
+      tipo.observaciones || '';
+
+    catalogModalTitle.textContent =
+      'Editar tipo de herramienta';
+
+    saveCatalogButton.textContent =
+      'Guardar cambios';
+
+    catalogFormMessage.textContent =
+      '';
+
+    ajustarControlCatalogo();
+
+    catalogModal.hidden = false;
+    formCatalogName.focus();
+  }
+
+  function asegurarOpcionSelect(
+    select,
+    valor
+  ) {
+    const valorNormalizado =
+      String(
+        valor || ''
+      ).toUpperCase();
+
+    if (!valorNormalizado) {
+      return;
+    }
+
+    const existe =
+      Array.from(
+        select.options
+      ).some(
+        option =>
+          option.value ===
+          valorNormalizado
+      );
+
+    if (!existe) {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        valorNormalizado;
+
+      option.textContent =
+        formatearTexto(
+          valorNormalizado
+        );
+
+      select.appendChild(
+        option
+      );
+    }
+  }
+
+  function ajustarControlCatalogo() {
+    const control =
+      String(
+        formCatalogControl.value || ''
+      ).toUpperCase();
+
+    if (control === 'UNITARIO') {
+      asegurarOpcionSelect(
+        formCatalogUnit,
+        'UNIDAD'
+      );
+
+      formCatalogUnit.value =
+        'UNIDAD';
+
+      formCatalogUnit.disabled =
+        true;
+
+    } else {
+      formCatalogUnit.disabled =
+        false;
+
+      if (
+        formCatalogSeries.value ===
+        'SI'
+      ) {
+        formCatalogSeries.value =
+          'NO';
+      }
+    }
+  }
+
+  function ajustarSerieCatalogo() {
+    if (
+      formCatalogSeries.value ===
+      'SI'
+    ) {
+      formCatalogControl.value =
+        'UNITARIO';
+
+      ajustarControlCatalogo();
+    }
+  }
+
+  function cerrarFormularioCatalogo() {
+    catalogModal.hidden = true;
+    catalogFormMessage.textContent = '';
+    formCatalogUnit.disabled = false;
+  }
+
+  async function guardarTipoCatalogo(
+    event
+  ) {
+    event.preventDefault();
+    catalogFormMessage.textContent =
+      '';
+
+    const payload = {
+      accion:
+        'guardar_tipo_herramienta',
+      token:
+        auth.token,
+      idTipo:
+        formCatalogId.value.trim(),
+      tipoHerramienta:
+        formCatalogName.value.trim(),
+      categoria:
+        formCatalogCategory.value.trim(),
+      tipoControl:
+        formCatalogControl.value,
+      unidadMedida:
+        formCatalogUnit.value,
+      requiereSerie:
+        formCatalogSeries.value,
+      estado:
+        formCatalogStatus.value,
+      observaciones:
+        formCatalogNotes.value.trim()
+    };
+
+    if (
+      !payload.tipoHerramienta ||
+      !payload.categoria ||
+      !payload.tipoControl ||
+      !payload.unidadMedida
+    ) {
+      catalogFormMessage.textContent =
+        'Completa los campos obligatorios.';
+      return;
+    }
+
+    saveCatalogButton.disabled = true;
+    saveCatalogButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar el tipo de herramienta.'
+        );
+      }
+
+      if (respuesta.tipo) {
+        incorporarTipoCatalogoLocal(
+          respuesta.tipo
+        );
+      }
+
+      cerrarFormularioCatalogo();
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarCatalogoHerramientas();
+
+    } catch (error) {
+      catalogFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveCatalogButton.disabled =
+        false;
+
+      saveCatalogButton.textContent =
+        formCatalogId.value
+          ? 'Guardar cambios'
+          : 'Registrar tipo';
+    }
+  }
+
+  function incorporarTipoCatalogoLocal(
+    tipo
+  ) {
+    const id =
+      String(
+        tipo.idTipo || ''
+      );
+
+    const indice =
+      tiposCatalogo.findIndex(
+        item =>
+          String(
+            item.idTipo || ''
+          ) === id
+      );
+
+    if (indice === -1) {
+      tiposCatalogo.unshift(
+        tipo
+      );
+    } else {
+      tiposCatalogo[indice] = {
+        ...tiposCatalogo[indice],
+        ...tipo
+      };
+    }
+
+    renderizarCatalogo();
+  }
+
+  async function cambiarEstadoTipoCatalogo(
+    tipo,
+    estado
+  ) {
+    const accion =
+      estado === 'ACTIVO'
+        ? 'activar'
+        : 'inactivar';
+
+    const confirmado =
+      window.confirm(
+        `¿Deseas ${accion} el tipo ` +
+        `${tipo.tipoHerramienta}?`
+      );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_tipo_herramienta',
+          token:
+            auth.token,
+          idTipo:
+            tipo.idTipo,
+          estado:
+            estado
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarCatalogoHerramientas();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    catalogView.hidden = true;
     supervisorsView.hidden = true;
     crewsView.hidden = true;
     usersView.hidden = true;
@@ -1199,6 +2102,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    catalogView.hidden = true;
     warehousesView.hidden = true;
     crewsView.hidden = true;
     usersView.hidden = true;
@@ -2013,6 +2917,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    catalogView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
     usersView.hidden = true;
@@ -2678,6 +3583,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    catalogView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
     crewsView.hidden = true;
@@ -2686,6 +3592,7 @@
   }
 
   function mostrarDashboard() {
+    catalogView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
     crewsView.hidden = true;
@@ -3205,6 +4112,7 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    tiposCatalogo = [];
     almacenes = [];
     supervisores = [];
     cuadrillas = [];

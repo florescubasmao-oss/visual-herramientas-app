@@ -843,3 +843,68 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.catalog-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.catalog-table {
+  min-width: 1120px;
+}
+
+.catalog-name-cell strong,
+.catalog-name-cell small,
+.catalog-usage-cell strong,
+.catalog-usage-cell small {
+  display: block;
+}
+
+.catalog-name-cell small,
+.catalog-usage-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.control-badge,
+.series-badge,
+.unit-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.control-unitario {
+  color: var(--primary);
+}
+
+.control-cantidad {
+  color: var(--accent);
+}
+
+.series-yes {
+  color: var(--success);
+}
+
+.series-no {
+  color: var(--muted);
+}
+
+@media (max-width: 1100px) {
+  .catalog-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .catalog-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}

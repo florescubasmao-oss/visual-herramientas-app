@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.6.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.7.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -263,6 +263,137 @@
 
 
 
+
+
+
+    <main id="catalogView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backCatalogButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Operación</p>
+            <h2>Catálogo de herramientas</h2>
+            <p class="subtitle">
+              Tipos, categorías, control, unidad de medida y estado.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="newCatalogButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nuevo tipo
+          </button>
+
+          <button
+            id="refreshCatalogButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="filters-card"
+        aria-label="Filtros del catálogo"
+      >
+        <div class="catalog-filters-grid">
+          <div class="field-group">
+            <label for="catalogSearch">Buscar</label>
+            <input
+              id="catalogSearch"
+              type="search"
+              placeholder="Tipo, categoría o ID"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="catalogCategoryFilter">Categoría</label>
+            <select id="catalogCategoryFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="catalogControlFilter">Control</label>
+            <select id="catalogControlFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="catalogSeriesFilter">Serie</label>
+            <select id="catalogSeriesFilter">
+              <option value="">Todos</option>
+              <option value="SI">Requiere serie</option>
+              <option value="NO">No requiere serie</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="catalogStatusFilter">Estado</label>
+            <select id="catalogStatusFilter">
+              <option value="">Todos</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div
+          id="catalogLoading"
+          class="loading-state"
+        >
+          Selecciona Actualizar para cargar el catálogo.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="catalogTable"
+            class="data-table catalog-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Tipo de herramienta</th>
+                <th>Categoría</th>
+                <th>Control</th>
+                <th>Serie</th>
+                <th>Unidad</th>
+                <th>Estado</th>
+                <th>Uso</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="catalogTableBody"></tbody>
+          </table>
+        </div>
+
+        <p
+          id="catalogEmpty"
+          class="empty-state"
+          hidden
+        >
+          No se encontraron tipos con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="warehousesView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -650,6 +781,118 @@
 
 
 
+
+
+
+  <div id="catalogModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="catalogModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Catálogo de herramientas</p>
+          <h2 id="catalogModalTitle">Nuevo tipo</h2>
+        </div>
+
+        <button
+          id="closeCatalogModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="catalogForm" class="user-form">
+        <input id="formCatalogId" type="hidden">
+
+        <div class="form-grid">
+          <div class="field-group field-span-2">
+            <label for="formCatalogName">Tipo de herramienta</label>
+            <input
+              id="formCatalogName"
+              type="text"
+              placeholder="Ejemplo: Multímetro digital"
+              required
+            >
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formCatalogCategory">Categoría</label>
+            <input
+              id="formCatalogCategory"
+              type="text"
+              list="catalogCategoriesList"
+              placeholder="Selecciona o escribe una categoría"
+              required
+            >
+            <datalist id="catalogCategoriesList"></datalist>
+          </div>
+
+          <div class="field-group">
+            <label for="formCatalogControl">Tipo de control</label>
+            <select id="formCatalogControl" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formCatalogUnit">Unidad de medida</label>
+            <select id="formCatalogUnit" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formCatalogSeries">¿Requiere serie?</label>
+            <select id="formCatalogSeries" required>
+              <option value="NO">No</option>
+              <option value="SI">Sí</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="formCatalogStatus">Estado</label>
+            <select id="formCatalogStatus" required>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formCatalogNotes">Observaciones</label>
+            <textarea
+              id="formCatalogNotes"
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
+
+        <p
+          id="catalogFormMessage"
+          class="form-message"
+        ></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelCatalogFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveCatalogButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Guardar tipo
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
 
   <div id="warehouseModal" class="modal-backdrop" hidden>
     <section
@@ -1046,7 +1289,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.6.0"></script>
-  <script src="js/app.js?v=0.6.0"></script>
+  <script src="js/config.js?v=0.7.0"></script>
+  <script src="js/app.js?v=0.7.0"></script>
 </body>
 </html>
