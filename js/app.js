@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const maintenanceView = document.getElementById('maintenanceView');
   const inventoriesView = document.getElementById('inventoriesView');
   const cargosView = document.getElementById('cargosView');
   const stockView = document.getElementById('stockView');
@@ -32,6 +33,50 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backMaintenanceButton = document.getElementById('backMaintenanceButton');
+  const downloadMaintenanceButton = document.getElementById('downloadMaintenanceButton');
+  const newMaintenanceButton = document.getElementById('newMaintenanceButton');
+  const refreshMaintenanceButton = document.getElementById('refreshMaintenanceButton');
+  const maintenanceSearch = document.getElementById('maintenanceSearch');
+  const maintenanceSiteFilter = document.getElementById('maintenanceSiteFilter');
+  const maintenanceTypeFilter = document.getElementById('maintenanceTypeFilter');
+  const maintenanceStateFilter = document.getElementById('maintenanceStateFilter');
+  const maintenanceResultFilter = document.getElementById('maintenanceResultFilter');
+  const maintenanceDateFrom = document.getElementById('maintenanceDateFrom');
+  const maintenanceDateTo = document.getElementById('maintenanceDateTo');
+  const maintenanceLoading = document.getElementById('maintenanceLoading');
+  const maintenanceTable = document.getElementById('maintenanceTable');
+  const maintenanceTableBody = document.getElementById('maintenanceTableBody');
+  const maintenanceEmpty = document.getElementById('maintenanceEmpty');
+  const maintenanceSummaryTotal = document.getElementById('maintenanceSummaryTotal');
+  const maintenanceSummaryScheduled = document.getElementById('maintenanceSummaryScheduled');
+  const maintenanceSummaryProgress = document.getElementById('maintenanceSummaryProgress');
+  const maintenanceSummaryOverdue = document.getElementById('maintenanceSummaryOverdue');
+
+  const maintenanceModal = document.getElementById('maintenanceModal');
+  const closeMaintenanceModalButton = document.getElementById('closeMaintenanceModalButton');
+  const cancelMaintenanceFormButton = document.getElementById('cancelMaintenanceFormButton');
+  const maintenanceForm = document.getElementById('maintenanceForm');
+  const maintenanceModalTitle = document.getElementById('maintenanceModalTitle');
+  const formMaintenanceId = document.getElementById('formMaintenanceId');
+  const formMaintenanceTool = document.getElementById('formMaintenanceTool');
+  const formMaintenanceScheduledDate = document.getElementById('formMaintenanceScheduledDate');
+  const formMaintenanceType = document.getElementById('formMaintenanceType');
+  const formMaintenanceReason = document.getElementById('formMaintenanceReason');
+  const formMaintenanceWorkshop = document.getElementById('formMaintenanceWorkshop');
+  const maintenanceProvidersList = document.getElementById('maintenanceProvidersList');
+  const formMaintenanceEstimatedCost = document.getElementById('formMaintenanceEstimatedCost');
+  const formMaintenanceRealCost = document.getElementById('formMaintenanceRealCost');
+  const formMaintenanceResult = document.getElementById('formMaintenanceResult');
+  const formMaintenanceEndDate = document.getElementById('formMaintenanceEndDate');
+  const formMaintenanceNextDate = document.getElementById('formMaintenanceNextDate');
+  const formMaintenanceSendMovement = document.getElementById('formMaintenanceSendMovement');
+  const formMaintenanceReturnMovement = document.getElementById('formMaintenanceReturnMovement');
+  const formMaintenanceEvidence = document.getElementById('formMaintenanceEvidence');
+  const formMaintenanceNotes = document.getElementById('formMaintenanceNotes');
+  const maintenanceFormMessage = document.getElementById('maintenanceFormMessage');
+  const saveMaintenanceButton = document.getElementById('saveMaintenanceButton');
 
   const backInventoriesButton = document.getElementById('backInventoriesButton');
   const newInventoryButton = document.getElementById('newInventoryButton');
@@ -379,6 +424,21 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let mantenimientos = [];
+  let mantenimientosFiltrados = [];
+  let puedeRegistrarMantenimientos = false;
+  let puedeEditarMantenimientos = false;
+  let puedeAprobarMantenimientos = false;
+  let puedeAnularMantenimientos = false;
+  let puedeDescargarMantenimientos = false;
+  let catalogosMantenimientos = {
+    herramientas: [],
+    sedes: [],
+    tiposMantenimiento: [],
+    estados: [],
+    resultados: [],
+    proveedores: []
+  };
   let inventarios = [];
   let inventarioActual = null;
   let itemsConteoInventario = [];
@@ -500,6 +560,33 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backMaintenanceButton.addEventListener('click', mostrarDashboard);
+    newMaintenanceButton.addEventListener('click', abrirNuevoMantenimiento);
+    refreshMaintenanceButton.addEventListener('click', cargarMantenimientos);
+    downloadMaintenanceButton.addEventListener('click', descargarMantenimientosCsv);
+    closeMaintenanceModalButton.addEventListener('click', cerrarFormularioMantenimiento);
+    cancelMaintenanceFormButton.addEventListener('click', cerrarFormularioMantenimiento);
+    maintenanceForm.addEventListener('submit', guardarMantenimiento);
+
+    maintenanceModal.addEventListener('click', (event) => {
+      if (event.target === maintenanceModal) {
+        cerrarFormularioMantenimiento();
+      }
+    });
+
+    [
+      maintenanceSearch,
+      maintenanceSiteFilter,
+      maintenanceTypeFilter,
+      maintenanceStateFilter,
+      maintenanceResultFilter,
+      maintenanceDateFrom,
+      maintenanceDateTo
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarMantenimientos);
+      control.addEventListener('change', renderizarMantenimientos);
+    });
+
     backInventoriesButton.addEventListener('click', mostrarDashboard);
     newInventoryButton.addEventListener('click', abrirNuevoInventario);
     refreshInventoriesButton.addEventListener('click', cargarInventarios);
@@ -984,6 +1071,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'MANTENIMIENTOS') {
+      abrirMantenimientos();
+      return;
+    }
+
     if (modulo === 'INVENTARIOS') {
       abrirInventarios();
       return;
@@ -1047,8 +1139,1188 @@
 
 
 
+
+  async function abrirMantenimientos() {
+    dashboardView.hidden = true;
+    inventoriesView.hidden = true;
+    cargosView.hidden = true;
+    stockView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    maintenanceView.hidden = false;
+
+    await cargarMantenimientos();
+  }
+
+  async function cargarMantenimientos() {
+    maintenanceLoading.hidden = false;
+    maintenanceLoading.textContent = 'Cargando mantenimientos…';
+    maintenanceTable.hidden = true;
+    maintenanceEmpty.hidden = true;
+    refreshMaintenanceButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_mantenimientos',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar los mantenimientos.'
+        );
+      }
+
+      mantenimientos =
+        Array.isArray(
+          respuesta.mantenimientos
+        )
+          ? respuesta.mantenimientos
+          : [];
+
+      puedeRegistrarMantenimientos =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarMantenimientos =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      puedeAprobarMantenimientos =
+        Boolean(
+          respuesta.puedeAprobar
+        );
+
+      puedeAnularMantenimientos =
+        Boolean(
+          respuesta.puedeAnular
+        );
+
+      puedeDescargarMantenimientos =
+        Boolean(
+          respuesta.puedeDescargar
+        );
+
+      catalogosMantenimientos =
+        respuesta.catalogos || {
+          herramientas: [],
+          sedes: [],
+          tiposMantenimiento: [],
+          estados: [],
+          resultados: [],
+          proveedores: []
+        };
+
+      newMaintenanceButton.hidden =
+        !puedeRegistrarMantenimientos;
+
+      downloadMaintenanceButton.hidden =
+        !puedeDescargarMantenimientos;
+
+      actualizarCatalogosMantenimientos();
+      renderizarMantenimientos();
+      maintenanceLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      maintenanceLoading.hidden = false;
+      maintenanceLoading.textContent = error.message;
+      maintenanceTable.hidden = true;
+
+    } finally {
+      refreshMaintenanceButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosMantenimientos() {
+    llenarSelectConTodos(
+      maintenanceSiteFilter,
+      catalogosMantenimientos.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      maintenanceTypeFilter,
+      catalogosMantenimientos.tiposMantenimiento || [],
+      'Todos'
+    );
+
+    llenarSelectConTodos(
+      maintenanceStateFilter,
+      catalogosMantenimientos.estados || [],
+      'Todos'
+    );
+
+    llenarSelectConTodos(
+      maintenanceResultFilter,
+      catalogosMantenimientos.resultados || [],
+      'Todos'
+    );
+
+    llenarSelectFormulario(
+      formMaintenanceType,
+      catalogosMantenimientos.tiposMantenimiento || []
+    );
+
+    llenarSelectFormulario(
+      formMaintenanceResult,
+      catalogosMantenimientos.resultados || []
+    );
+
+    llenarHerramientasMantenimientoFormulario();
+
+    maintenanceProvidersList.innerHTML = '';
+
+    (
+      catalogosMantenimientos.proveedores || []
+    ).forEach(proveedor => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        proveedor;
+
+      maintenanceProvidersList.appendChild(
+        option
+      );
+    });
+  }
+
+  function llenarHerramientasMantenimientoFormulario() {
+    const actual =
+      formMaintenanceTool.value;
+
+    formMaintenanceTool.innerHTML = '';
+
+    (
+      catalogosMantenimientos.herramientas || []
+    ).forEach(herramienta => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        herramienta.idHerramienta;
+
+      option.textContent =
+        `${herramienta.codigoInterno || herramienta.idHerramienta} · ` +
+        `${herramienta.tipoHerramienta} · ${formatearTexto(
+          herramienta.sede
+        )} · ${formatearTexto(
+          herramienta.tipoUbicacion
+        )}`;
+
+      formMaintenanceTool.appendChild(
+        option
+      );
+    });
+
+    if (
+      actual &&
+      Array.from(
+        formMaintenanceTool.options
+      ).some(option =>
+        option.value === actual
+      )
+    ) {
+      formMaintenanceTool.value =
+        actual;
+    }
+  }
+
+  function renderizarMantenimientos() {
+    const texto =
+      normalizarBusqueda(
+        maintenanceSearch.value
+      );
+
+    const sede =
+      String(
+        maintenanceSiteFilter.value || ''
+      ).toUpperCase();
+
+    const tipo =
+      String(
+        maintenanceTypeFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        maintenanceStateFilter.value || ''
+      ).toUpperCase();
+
+    const resultado =
+      String(
+        maintenanceResultFilter.value || ''
+      ).toUpperCase();
+
+    const desde =
+      maintenanceDateFrom.value;
+
+    const hasta =
+      maintenanceDateTo.value;
+
+    mantenimientosFiltrados =
+      mantenimientos.filter(item => {
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            item.idMantenimiento,
+            item.idHerramienta,
+            item.codigoInterno,
+            item.tipoHerramienta,
+            item.motivo,
+            item.proveedorTaller,
+            item.responsableOrigen,
+            item.idMovimientoEnvio,
+            item.idMovimientoRetorno,
+            item.observaciones
+          ].join(' ')).includes(
+            texto
+          );
+
+        const coincideSede =
+          !sede ||
+          item.sede === sede;
+
+        const coincideTipo =
+          !tipo ||
+          item.tipoMantenimiento ===
+            tipo;
+
+        const coincideEstado =
+          !estado ||
+          item.estadoMantenimiento ===
+            estado;
+
+        const coincideResultado =
+          !resultado ||
+          item.resultado ===
+            resultado;
+
+        const fecha =
+          item.fechaProgramadaIso ||
+          convertirFechaMovimientoIso(
+            item.fechaProgramada
+          );
+
+        const coincideDesde =
+          !desde ||
+          !fecha ||
+          fecha >= desde;
+
+        const coincideHasta =
+          !hasta ||
+          !fecha ||
+          fecha <= hasta;
+
+        return (
+          coincideTexto &&
+          coincideSede &&
+          coincideTipo &&
+          coincideEstado &&
+          coincideResultado &&
+          coincideDesde &&
+          coincideHasta
+        );
+      });
+
+    maintenanceTableBody.innerHTML = '';
+
+    mantenimientosFiltrados.forEach(item => {
+      maintenanceTableBody.appendChild(
+        crearFilaMantenimiento(
+          item
+        )
+      );
+    });
+
+    maintenanceSummaryTotal.textContent =
+      String(
+        mantenimientosFiltrados.length
+      );
+
+    maintenanceSummaryScheduled.textContent =
+      String(
+        mantenimientosFiltrados.filter(item =>
+          item.estadoMantenimiento ===
+          'PROGRAMADO'
+        ).length
+      );
+
+    maintenanceSummaryProgress.textContent =
+      String(
+        mantenimientosFiltrados.filter(item =>
+          item.estadoMantenimiento ===
+          'EN_PROCESO'
+        ).length
+      );
+
+    maintenanceSummaryOverdue.textContent =
+      String(
+        mantenimientosFiltrados.filter(
+          mantenimientoEstaVencido
+        ).length
+      );
+
+    maintenanceLoading.hidden = true;
+    maintenanceTable.hidden =
+      mantenimientosFiltrados.length === 0;
+    maintenanceEmpty.hidden =
+      mantenimientosFiltrados.length !== 0;
+  }
+
+  function mantenimientoEstaVencido(
+    mantenimiento
+  ) {
+    if (
+      mantenimiento.estadoMantenimiento !==
+      'PROGRAMADO'
+    ) {
+      return false;
+    }
+
+    const fecha =
+      mantenimiento.fechaProgramadaIso ||
+      convertirFechaMovimientoIso(
+        mantenimiento.fechaProgramada
+      );
+
+    if (!fecha) {
+      return false;
+    }
+
+    const hoy =
+      new Date();
+
+    const hoyIso =
+      new Date(
+        hoy.getTime() -
+        hoy.getTimezoneOffset() *
+        60000
+      )
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    return fecha < hoyIso;
+  }
+
+  function crearFilaMantenimiento(
+    mantenimiento
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const principal =
+      document.createElement(
+        'td'
+      );
+
+    principal.className =
+      'maintenance-main-cell';
+
+    principal.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          mantenimiento.tipoMantenimiento
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        mantenimiento.fechaRegistro ||
+        ''
+      )}</small>` +
+      `<span class="maintenance-id">${escaparHtml(
+        mantenimiento.idMantenimiento
+      )}</span>`;
+
+    fila.appendChild(
+      principal
+    );
+
+    const herramienta =
+      document.createElement(
+        'td'
+      );
+
+    herramienta.className =
+      'maintenance-tool-cell';
+
+    herramienta.innerHTML =
+      `<strong>${escaparHtml(
+        mantenimiento.tipoHerramienta ||
+        'Sin herramienta'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          mantenimiento.codigoInterno,
+          mantenimiento.idHerramienta,
+          formatearTexto(
+            mantenimiento.sede
+          ),
+          mantenimiento.responsableOrigen
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      herramienta
+    );
+
+    const programacion =
+      document.createElement(
+        'td'
+      );
+
+    programacion.className =
+      'maintenance-detail-cell';
+
+    const vencido =
+      mantenimientoEstaVencido(
+        mantenimiento
+      );
+
+    programacion.innerHTML =
+      `<strong class="${vencido ? 'maintenance-overdue' : ''}">${escaparHtml(
+        mantenimiento.fechaProgramada ||
+        'Sin fecha'
+      )}${vencido ? ' · Vencido' : ''}</strong>` +
+      `<small>${escaparHtml(
+        [
+          mantenimiento.fechaInicio
+            ? `Inicio ${mantenimiento.fechaInicio}`
+            : '',
+          mantenimiento.fechaFin
+            ? `Fin ${mantenimiento.fechaFin}`
+            : '',
+          mantenimiento.proximoMantenimiento
+            ? `Próximo ${mantenimiento.proximoMantenimiento}`
+            : ''
+        ].filter(Boolean).join(' · ') ||
+        mantenimiento.motivo ||
+        'Sin detalle'
+      )}</small>`;
+
+    fila.appendChild(
+      programacion
+    );
+
+    const costos =
+      document.createElement(
+        'td'
+      );
+
+    costos.className =
+      'maintenance-detail-cell';
+
+    costos.innerHTML =
+      `<strong>${escaparHtml(
+        mantenimiento.proveedorTaller ||
+        'Sin taller'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        `Estimado: ${formatearCostoMantenimiento(
+          mantenimiento.costoEstimado
+        )} · Real: ${formatearCostoMantenimiento(
+          mantenimiento.costoReal
+        )}`
+      )}</small>`;
+
+    fila.appendChild(
+      costos
+    );
+
+    const resultado =
+      document.createElement(
+        'td'
+      );
+
+    resultado.className =
+      'maintenance-detail-cell';
+
+    resultado.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          mantenimiento.resultado ||
+          'PENDIENTE'
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        mantenimiento.observaciones ||
+        'Sin observaciones'
+      )}</small>`;
+
+    fila.appendChild(
+      resultado
+    );
+
+    const estado =
+      document.createElement(
+        'td'
+      );
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    insignia.className =
+      'status-badge ' +
+      (
+        mantenimiento.estadoMantenimiento ===
+          'FINALIZADO'
+          ? 'status-active'
+          : mantenimiento.estadoMantenimiento ===
+              'CANCELADO'
+            ? 'status-inactive'
+            : ''
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        mantenimiento.estadoMantenimiento ||
+        'PROGRAMADO'
+      );
+
+    estado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      estado
+    );
+
+    const movimientos =
+      document.createElement(
+        'td'
+      );
+
+    movimientos.className =
+      'maintenance-links';
+
+    if (
+      mantenimiento.idMovimientoEnvio
+    ) {
+      const envio =
+        document.createElement(
+          'span'
+        );
+
+      envio.textContent =
+        `Envío: ${mantenimiento.idMovimientoEnvio}`;
+
+      movimientos.appendChild(
+        envio
+      );
+    }
+
+    if (
+      mantenimiento.idMovimientoRetorno
+    ) {
+      const retorno =
+        document.createElement(
+          'span'
+        );
+
+      retorno.textContent =
+        `Retorno: ${mantenimiento.idMovimientoRetorno}`;
+
+      movimientos.appendChild(
+        retorno
+      );
+    }
+
+    if (
+      /^https?:\/\//i.test(
+        mantenimiento.evidenciaUrl || ''
+      )
+    ) {
+      const enlace =
+        document.createElement(
+          'a'
+        );
+
+      enlace.href =
+        mantenimiento.evidenciaUrl;
+
+      enlace.target =
+        '_blank';
+
+      enlace.rel =
+        'noopener noreferrer';
+
+      enlace.textContent =
+        'Ver evidencia';
+
+      movimientos.appendChild(
+        enlace
+      );
+    }
+
+    if (
+      !movimientos.children.length
+    ) {
+      movimientos.textContent =
+        'Sin referencias';
+    }
+
+    fila.appendChild(
+      movimientos
+    );
+
+    const acciones =
+      document.createElement(
+        'td'
+      );
+
+    acciones.className =
+      'actions-cell';
+
+    if (
+      puedeEditarMantenimientos &&
+      [
+        'PROGRAMADO',
+        'EN_PROCESO'
+      ].includes(
+        mantenimiento.estadoMantenimiento
+      )
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarMantenimiento(
+              mantenimiento
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAprobarMantenimientos &&
+      mantenimiento.estadoMantenimiento ===
+        'PROGRAMADO'
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Iniciar',
+          () =>
+            cambiarEstadoMantenimiento(
+              mantenimiento,
+              'EN_PROCESO'
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAprobarMantenimientos &&
+      mantenimiento.estadoMantenimiento ===
+        'EN_PROCESO'
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Finalizar',
+          () =>
+            cambiarEstadoMantenimiento(
+              mantenimiento,
+              'FINALIZADO'
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAnularMantenimientos &&
+      [
+        'PROGRAMADO',
+        'EN_PROCESO'
+      ].includes(
+        mantenimiento.estadoMantenimiento
+      )
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Cancelar',
+          () =>
+            cambiarEstadoMantenimiento(
+              mantenimiento,
+              'CANCELADO',
+              true
+            )
+        )
+      );
+    }
+
+    if (
+      !acciones.children.length
+    ) {
+      acciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      acciones
+    );
+
+    return fila;
+  }
+
+  function formatearCostoMantenimiento(
+    valor
+  ) {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    if (
+      !Number.isFinite(
+        numero
+      ) ||
+      numero === 0
+    ) {
+      return 'S/ 0.00';
+    }
+
+    return (
+      'S/ ' +
+      numero.toLocaleString(
+        'es-PE',
+        {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }
+      )
+    );
+  }
+
+  function abrirNuevoMantenimiento() {
+    maintenanceForm.reset();
+    formMaintenanceId.value = '';
+
+    actualizarCatalogosMantenimientos();
+
+    const hoy =
+      new Date();
+
+    formMaintenanceScheduledDate.value =
+      new Date(
+        hoy.getTime() -
+        hoy.getTimezoneOffset() *
+        60000
+      )
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    formMaintenanceResult.value =
+      'PENDIENTE';
+
+    formMaintenanceTool.disabled =
+      false;
+
+    maintenanceModalTitle.textContent =
+      'Nuevo mantenimiento';
+
+    saveMaintenanceButton.textContent =
+      'Guardar mantenimiento';
+
+    maintenanceFormMessage.textContent =
+      '';
+
+    maintenanceModal.hidden = false;
+    formMaintenanceTool.focus();
+  }
+
+  function abrirEditarMantenimiento(
+    mantenimiento
+  ) {
+    maintenanceForm.reset();
+    actualizarCatalogosMantenimientos();
+
+    asegurarHerramientaMantenimientoFormulario(
+      mantenimiento
+    );
+
+    formMaintenanceId.value =
+      mantenimiento.idMantenimiento;
+
+    formMaintenanceTool.value =
+      mantenimiento.idHerramienta;
+
+    formMaintenanceTool.disabled =
+      true;
+
+    formMaintenanceScheduledDate.value =
+      mantenimiento.fechaProgramadaIso ||
+      '';
+
+    formMaintenanceType.value =
+      mantenimiento.tipoMantenimiento ||
+      '';
+
+    formMaintenanceReason.value =
+      mantenimiento.motivo ||
+      '';
+
+    formMaintenanceWorkshop.value =
+      mantenimiento.proveedorTaller ||
+      '';
+
+    formMaintenanceEstimatedCost.value =
+      Number(
+        mantenimiento.costoEstimado || 0
+      ) || '';
+
+    formMaintenanceRealCost.value =
+      Number(
+        mantenimiento.costoReal || 0
+      ) || '';
+
+    asegurarOpcionSelect(
+      formMaintenanceResult,
+      mantenimiento.resultado
+    );
+
+    formMaintenanceResult.value =
+      mantenimiento.resultado ||
+      'PENDIENTE';
+
+    formMaintenanceEndDate.value =
+      mantenimiento.fechaFinIso ||
+      '';
+
+    formMaintenanceNextDate.value =
+      mantenimiento.proximoMantenimientoIso ||
+      '';
+
+    formMaintenanceSendMovement.value =
+      mantenimiento.idMovimientoEnvio ||
+      '';
+
+    formMaintenanceReturnMovement.value =
+      mantenimiento.idMovimientoRetorno ||
+      '';
+
+    formMaintenanceEvidence.value =
+      mantenimiento.evidenciaUrl ||
+      '';
+
+    formMaintenanceNotes.value =
+      mantenimiento.observaciones ||
+      '';
+
+    maintenanceModalTitle.textContent =
+      `Editar ${mantenimiento.idMantenimiento}`;
+
+    saveMaintenanceButton.textContent =
+      'Guardar cambios';
+
+    maintenanceFormMessage.textContent =
+      '';
+
+    maintenanceModal.hidden = false;
+    formMaintenanceScheduledDate.focus();
+  }
+
+  function asegurarHerramientaMantenimientoFormulario(
+    mantenimiento
+  ) {
+    if (
+      Array.from(
+        formMaintenanceTool.options
+      ).some(option =>
+        option.value ===
+        mantenimiento.idHerramienta
+      )
+    ) {
+      return;
+    }
+
+    const option =
+      document.createElement(
+        'option'
+      );
+
+    option.value =
+      mantenimiento.idHerramienta;
+
+    option.textContent =
+      `${mantenimiento.codigoInterno || mantenimiento.idHerramienta} · ` +
+      `${mantenimiento.tipoHerramienta}`;
+
+    formMaintenanceTool.appendChild(
+      option
+    );
+  }
+
+  function cerrarFormularioMantenimiento() {
+    maintenanceModal.hidden = true;
+    maintenanceFormMessage.textContent =
+      '';
+    formMaintenanceTool.disabled =
+      false;
+  }
+
+  async function guardarMantenimiento(
+    event
+  ) {
+    event.preventDefault();
+    maintenanceFormMessage.textContent =
+      '';
+
+    const payload = {
+      accion:
+        'guardar_mantenimiento',
+      token:
+        auth.token,
+      idMantenimiento:
+        formMaintenanceId.value.trim(),
+      idHerramienta:
+        formMaintenanceTool.value,
+      fechaProgramada:
+        formMaintenanceScheduledDate.value,
+      tipoMantenimiento:
+        formMaintenanceType.value,
+      motivo:
+        formMaintenanceReason.value.trim(),
+      proveedorTaller:
+        formMaintenanceWorkshop.value.trim(),
+      costoEstimado:
+        formMaintenanceEstimatedCost.value,
+      costoReal:
+        formMaintenanceRealCost.value,
+      resultado:
+        formMaintenanceResult.value,
+      fechaFin:
+        formMaintenanceEndDate.value,
+      proximoMantenimiento:
+        formMaintenanceNextDate.value,
+      evidenciaUrl:
+        formMaintenanceEvidence.value.trim(),
+      observaciones:
+        formMaintenanceNotes.value.trim(),
+      idMovimientoEnvio:
+        formMaintenanceSendMovement.value.trim(),
+      idMovimientoRetorno:
+        formMaintenanceReturnMovement.value.trim()
+    };
+
+    if (
+      !payload.idHerramienta ||
+      !payload.fechaProgramada ||
+      !payload.tipoMantenimiento ||
+      !payload.motivo
+    ) {
+      maintenanceFormMessage.textContent =
+        'Completa la herramienta, fecha, tipo y motivo.';
+      return;
+    }
+
+    saveMaintenanceButton.disabled =
+      true;
+
+    saveMaintenanceButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar el mantenimiento.'
+        );
+      }
+
+      cerrarFormularioMantenimiento();
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarMantenimientos();
+
+    } catch (error) {
+      maintenanceFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveMaintenanceButton.disabled =
+        false;
+
+      saveMaintenanceButton.textContent =
+        formMaintenanceId.value
+          ? 'Guardar cambios'
+          : 'Guardar mantenimiento';
+    }
+  }
+
+  async function cambiarEstadoMantenimiento(
+    mantenimiento,
+    estado,
+    requiereComentario = false
+  ) {
+    let comentario = '';
+
+    if (requiereComentario) {
+      comentario =
+        window.prompt(
+          'Indica el motivo de la cancelación:'
+        );
+
+      if (
+        comentario === null
+      ) {
+        return;
+      }
+
+      comentario =
+        comentario.trim();
+
+      if (!comentario) {
+        window.alert(
+          'Debes ingresar un motivo.'
+        );
+
+        return;
+      }
+
+    } else {
+      const mensaje =
+        estado === 'FINALIZADO'
+          ? 'Antes de finalizar verifica que el resultado y la fecha de finalización estén registrados. ¿Continuar?'
+          : '¿Deseas iniciar este mantenimiento?';
+
+      if (
+        !window.confirm(
+          mensaje
+        )
+      ) {
+        return;
+      }
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_mantenimiento',
+          token:
+            auth.token,
+          idMantenimiento:
+            mantenimiento.idMantenimiento,
+          estado:
+            estado,
+          comentario:
+            comentario
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarMantenimientos();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
+  function descargarMantenimientosCsv() {
+    const encabezados = [
+      'ID_MANTENIMIENTO',
+      'FECHA_PROGRAMADA',
+      'FECHA_INICIO',
+      'FECHA_FIN',
+      'SEDE',
+      'ID_HERRAMIENTA',
+      'CODIGO_INTERNO',
+      'TIPO_HERRAMIENTA',
+      'TIPO_MANTENIMIENTO',
+      'MOTIVO',
+      'PROVEEDOR_TALLER',
+      'COSTO_ESTIMADO',
+      'COSTO_REAL',
+      'RESULTADO',
+      'PROXIMO_MANTENIMIENTO',
+      'ESTADO_MANTENIMIENTO',
+      'UBICACION_ORIGEN',
+      'RESPONSABLE_ORIGEN',
+      'ID_MOVIMIENTO_ENVIO',
+      'ID_MOVIMIENTO_RETORNO',
+      'EVIDENCIA_URL',
+      'OBSERVACIONES'
+    ];
+
+    const filas =
+      mantenimientosFiltrados.map(item => [
+        item.idMantenimiento,
+        item.fechaProgramada,
+        item.fechaInicio,
+        item.fechaFin,
+        item.sede,
+        item.idHerramienta,
+        item.codigoInterno,
+        item.tipoHerramienta,
+        item.tipoMantenimiento,
+        item.motivo,
+        item.proveedorTaller,
+        item.costoEstimado,
+        item.costoReal,
+        item.resultado,
+        item.proximoMantenimiento,
+        item.estadoMantenimiento,
+        item.ubicacionOrigen,
+        item.responsableOrigen,
+        item.idMovimientoEnvio,
+        item.idMovimientoRetorno,
+        item.evidenciaUrl,
+        item.observaciones
+      ]);
+
+    descargarCsvGenerico(
+      `mantenimientos_${new Date().toISOString().slice(0, 10)}.csv`,
+      encabezados,
+      filas
+    );
+  }
+
   async function abrirInventarios() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -2569,6 +3841,7 @@
 
   async function abrirCargos() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -3902,6 +5175,7 @@
 
   async function abrirStockActual() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     movementsView.hidden = true;
@@ -4595,6 +5869,7 @@
 
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -6131,6 +7406,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -7128,6 +8404,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -7962,6 +9239,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -8629,6 +9907,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -9449,6 +10728,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -10120,6 +11400,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -10134,6 +11415,7 @@
   }
 
   function mostrarDashboard() {
+    maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -10659,6 +11941,8 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    mantenimientos = [];
+    mantenimientosFiltrados = [];
     inventarios = [];
     inventarioActual = null;
     itemsConteoInventario = [];

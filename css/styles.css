@@ -1707,3 +1707,116 @@ footer {
     min-width: 0;
   }
 }
+
+
+.maintenance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.maintenance-summary-card {
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.maintenance-summary-card span,
+.maintenance-summary-card strong {
+  display: block;
+}
+
+.maintenance-summary-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.maintenance-summary-card strong {
+  margin-top: 6px;
+  font-size: 1.55rem;
+}
+
+.maintenance-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(6, minmax(130px, 1fr));
+  gap: 14px;
+}
+
+.maintenance-table {
+  min-width: 1380px;
+}
+
+.maintenance-main-cell strong,
+.maintenance-main-cell small,
+.maintenance-tool-cell strong,
+.maintenance-tool-cell small,
+.maintenance-detail-cell strong,
+.maintenance-detail-cell small {
+  display: block;
+}
+
+.maintenance-main-cell small,
+.maintenance-tool-cell small,
+.maintenance-detail-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.maintenance-id {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: var(--surface-soft);
+  color: var(--primary);
+  font-family: Consolas, monospace;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.maintenance-overdue {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.maintenance-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.maintenance-links a {
+  color: var(--primary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.maintenance-links a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1250px) {
+  .maintenance-filters-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .maintenance-summary-grid,
+  .maintenance-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .maintenance-summary-grid,
+  .maintenance-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}

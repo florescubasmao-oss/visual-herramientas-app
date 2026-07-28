@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.12.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.13.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -275,6 +275,164 @@
 
 
 
+
+
+
+    <main id="maintenanceView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backMaintenanceButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Ciclo de vida</p>
+            <h2>Mantenimientos</h2>
+            <p class="subtitle">
+              Programación, seguimiento, costos y resultados de herramientas unitarias.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="downloadMaintenanceButton"
+            class="secondary-button"
+            type="button"
+            hidden
+          >
+            Descargar CSV
+          </button>
+
+          <button
+            id="newMaintenanceButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nuevo mantenimiento
+          </button>
+
+          <button
+            id="refreshMaintenanceButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="maintenance-summary-grid">
+        <article class="maintenance-summary-card">
+          <span>Total visible</span>
+          <strong id="maintenanceSummaryTotal">0</strong>
+        </article>
+
+        <article class="maintenance-summary-card">
+          <span>Programados</span>
+          <strong id="maintenanceSummaryScheduled">0</strong>
+        </article>
+
+        <article class="maintenance-summary-card">
+          <span>En proceso</span>
+          <strong id="maintenanceSummaryProgress">0</strong>
+        </article>
+
+        <article class="maintenance-summary-card">
+          <span>Vencidos</span>
+          <strong id="maintenanceSummaryOverdue">0</strong>
+        </article>
+      </section>
+
+      <section class="filters-card">
+        <div class="maintenance-filters-grid">
+          <div class="field-group">
+            <label for="maintenanceSearch">Buscar</label>
+            <input
+              id="maintenanceSearch"
+              type="search"
+              placeholder="ID, herramienta, código, serie o taller"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="maintenanceSiteFilter">Sede</label>
+            <select id="maintenanceSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="maintenanceTypeFilter">Tipo</label>
+            <select id="maintenanceTypeFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="maintenanceStateFilter">Estado</label>
+            <select id="maintenanceStateFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="maintenanceResultFilter">Resultado</label>
+            <select id="maintenanceResultFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="maintenanceDateFrom">Desde</label>
+            <input id="maintenanceDateFrom" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="maintenanceDateTo">Hasta</label>
+            <input id="maintenanceDateTo" type="date">
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="maintenanceLoading" class="loading-state">
+          Selecciona Actualizar para cargar los mantenimientos.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="maintenanceTable"
+            class="data-table maintenance-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Mantenimiento</th>
+                <th>Herramienta</th>
+                <th>Programación</th>
+                <th>Taller / costos</th>
+                <th>Resultado</th>
+                <th>Estado</th>
+                <th>Movimientos</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="maintenanceTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="maintenanceEmpty" class="empty-state" hidden>
+          No se encontraron mantenimientos con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="inventoriesView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -1525,6 +1683,161 @@
 
 
 
+
+
+  <div id="maintenanceModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card modal-card-extra-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="maintenanceModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Ciclo de vida</p>
+          <h2 id="maintenanceModalTitle">Nuevo mantenimiento</h2>
+        </div>
+
+        <button
+          id="closeMaintenanceModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="maintenanceForm" class="user-form">
+        <input id="formMaintenanceId" type="hidden">
+
+        <div class="form-grid form-grid-3">
+          <div class="field-group field-span-2">
+            <label for="formMaintenanceTool">Herramienta</label>
+            <select id="formMaintenanceTool" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceScheduledDate">Fecha programada</label>
+            <input id="formMaintenanceScheduledDate" type="date" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceType">Tipo</label>
+            <select id="formMaintenanceType" required></select>
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formMaintenanceReason">Motivo</label>
+            <input
+              id="formMaintenanceReason"
+              type="text"
+              placeholder="Falla detectada, revisión periódica, calibración..."
+              required
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceWorkshop">Proveedor o taller</label>
+            <input
+              id="formMaintenanceWorkshop"
+              type="text"
+              list="maintenanceProvidersList"
+            >
+            <datalist id="maintenanceProvidersList"></datalist>
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceEstimatedCost">Costo estimado (S/)</label>
+            <input
+              id="formMaintenanceEstimatedCost"
+              type="number"
+              min="0"
+              step="0.01"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceRealCost">Costo real (S/)</label>
+            <input
+              id="formMaintenanceRealCost"
+              type="number"
+              min="0"
+              step="0.01"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceResult">Resultado</label>
+            <select id="formMaintenanceResult"></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceEndDate">Fecha de finalización</label>
+            <input id="formMaintenanceEndDate" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceNextDate">Próximo mantenimiento</label>
+            <input id="formMaintenanceNextDate" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceSendMovement">Movimiento de envío</label>
+            <input
+              id="formMaintenanceSendMovement"
+              type="text"
+              placeholder="MOV-000001"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formMaintenanceReturnMovement">Movimiento de retorno</label>
+            <input
+              id="formMaintenanceReturnMovement"
+              type="text"
+              placeholder="MOV-000002"
+            >
+          </div>
+
+          <div class="field-group field-span-3">
+            <label for="formMaintenanceEvidence">URL de evidencia</label>
+            <input
+              id="formMaintenanceEvidence"
+              type="url"
+              placeholder="https://..."
+            >
+          </div>
+
+          <div class="field-group field-span-3">
+            <label for="formMaintenanceNotes">Observaciones</label>
+            <textarea id="formMaintenanceNotes" rows="3"></textarea>
+          </div>
+        </div>
+
+        <p id="maintenanceFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelMaintenanceFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveMaintenanceButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Guardar mantenimiento
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="inventoryModal" class="modal-backdrop" hidden>
     <section
       class="modal-card modal-card-extra-wide"
@@ -2678,7 +2991,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.12.0"></script>
-  <script src="js/app.js?v=0.12.0"></script>
+  <script src="js/config.js?v=0.13.0"></script>
+  <script src="js/app.js?v=0.13.0"></script>
 </body>
 </html>
