@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const toolsView = document.getElementById('toolsView');
   const catalogView = document.getElementById('catalogView');
   const warehousesView = document.getElementById('warehousesView');
   const supervisorsView = document.getElementById('supervisorsView');
@@ -27,6 +28,42 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backToolsButton = document.getElementById('backToolsButton');
+  const newToolButton = document.getElementById('newToolButton');
+  const refreshToolsButton = document.getElementById('refreshToolsButton');
+  const toolSearch = document.getElementById('toolSearch');
+  const toolCategoryFilter = document.getElementById('toolCategoryFilter');
+  const toolTypeFilter = document.getElementById('toolTypeFilter');
+  const toolConditionFilter = document.getElementById('toolConditionFilter');
+  const toolSeriesFilter = document.getElementById('toolSeriesFilter');
+  const toolsLoading = document.getElementById('toolsLoading');
+  const toolsTable = document.getElementById('toolsTable');
+  const toolsTableBody = document.getElementById('toolsTableBody');
+  const toolsEmpty = document.getElementById('toolsEmpty');
+
+  const toolModal = document.getElementById('toolModal');
+  const closeToolModalButton = document.getElementById('closeToolModalButton');
+  const cancelToolFormButton = document.getElementById('cancelToolFormButton');
+  const toolForm = document.getElementById('toolForm');
+  const toolModalTitle = document.getElementById('toolModalTitle');
+  const formToolId = document.getElementById('formToolId');
+  const formToolCode = document.getElementById('formToolCode');
+  const formToolType = document.getElementById('formToolType');
+  const formToolBrand = document.getElementById('formToolBrand');
+  const formToolModel = document.getElementById('formToolModel');
+  const formToolSeries = document.getElementById('formToolSeries');
+  const formToolSeriesLabel = document.getElementById('formToolSeriesLabel');
+  const formToolSeriesHelp = document.getElementById('formToolSeriesHelp');
+  const formToolCondition = document.getElementById('formToolCondition');
+  const formToolPurchaseDate = document.getElementById('formToolPurchaseDate');
+  const formToolPurchaseCost = document.getElementById('formToolPurchaseCost');
+  const formToolProvider = document.getElementById('formToolProvider');
+  const toolProvidersList = document.getElementById('toolProvidersList');
+  const formToolPurchaseDocument = document.getElementById('formToolPurchaseDocument');
+  const formToolNotes = document.getElementById('formToolNotes');
+  const toolFormMessage = document.getElementById('toolFormMessage');
+  const saveToolButton = document.getElementById('saveToolButton');
 
   const backCatalogButton = document.getElementById('backCatalogButton');
   const newCatalogButton = document.getElementById('newCatalogButton');
@@ -179,6 +216,16 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let herramientas = [];
+  let puedeRegistrarHerramientas = false;
+  let puedeEditarHerramientas = false;
+  let catalogosHerramientas = {
+    tipos: [],
+    condiciones: [],
+    proveedores: [],
+    categorias: [],
+    serie: []
+  };
   let tiposCatalogo = [];
   let puedeRegistrarCatalogo = false;
   let puedeEditarCatalogo = false;
@@ -235,6 +282,31 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backToolsButton.addEventListener('click', mostrarDashboard);
+    newToolButton.addEventListener('click', abrirNuevaHerramienta);
+    refreshToolsButton.addEventListener('click', cargarHerramientas);
+    closeToolModalButton.addEventListener('click', cerrarFormularioHerramienta);
+    cancelToolFormButton.addEventListener('click', cerrarFormularioHerramienta);
+    toolForm.addEventListener('submit', guardarHerramienta);
+    formToolType.addEventListener('change', actualizarRequisitoSerieHerramienta);
+
+    toolModal.addEventListener('click', (event) => {
+      if (event.target === toolModal) {
+        cerrarFormularioHerramienta();
+      }
+    });
+
+    [
+      toolSearch,
+      toolCategoryFilter,
+      toolTypeFilter,
+      toolConditionFilter,
+      toolSeriesFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarHerramientas);
+      control.addEventListener('change', renderizarHerramientas);
+    });
+
     backCatalogButton.addEventListener('click', mostrarDashboard);
     newCatalogButton.addEventListener('click', abrirNuevoTipoCatalogo);
     refreshCatalogButton.addEventListener('click', cargarCatalogoHerramientas);
@@ -576,6 +648,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'HERRAMIENTAS') {
+      abrirHerramientas();
+      return;
+    }
+
     if (modulo === 'CATALOGO') {
       abrirCatalogoHerramientas();
       return;
@@ -609,8 +686,1003 @@
 
 
 
+
+  async function abrirHerramientas() {
+    dashboardView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    toolsView.hidden = false;
+
+    await cargarHerramientas();
+  }
+
+  async function cargarHerramientas() {
+    toolsLoading.hidden = false;
+    toolsLoading.textContent = 'Cargando herramientas…';
+    toolsTable.hidden = true;
+    toolsEmpty.hidden = true;
+    refreshToolsButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_herramientas',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar las herramientas.'
+        );
+      }
+
+      herramientas =
+        Array.isArray(
+          respuesta.herramientas
+        )
+          ? respuesta.herramientas
+          : [];
+
+      puedeRegistrarHerramientas =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarHerramientas =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      catalogosHerramientas =
+        respuesta.catalogos || {
+          tipos: [],
+          condiciones: [],
+          proveedores: [],
+          categorias: [],
+          serie: []
+        };
+
+      newToolButton.hidden =
+        !puedeRegistrarHerramientas;
+
+      actualizarCatalogosHerramientas();
+      renderizarHerramientas();
+      toolsLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      toolsLoading.hidden = false;
+      toolsLoading.textContent = error.message;
+      toolsTable.hidden = true;
+
+    } finally {
+      refreshToolsButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosHerramientas() {
+    const tipos =
+      Array.isArray(
+        catalogosHerramientas.tipos
+      )
+        ? catalogosHerramientas.tipos
+        : [];
+
+    const tiposFiltro =
+      tipos.map(tipo => ({
+        value:
+          tipo.idTipo,
+        text:
+          tipo.tipoHerramienta
+      }));
+
+    llenarSelectObjetosConTodos(
+      toolTypeFilter,
+      tiposFiltro,
+      'Todos'
+    );
+
+    llenarSelectConTodos(
+      toolCategoryFilter,
+      catalogosHerramientas.categorias || [],
+      'Todas'
+    );
+
+    const condiciones =
+      (
+        catalogosHerramientas.condiciones || []
+      ).map(item =>
+        item.condicionFisica
+      );
+
+    llenarSelectConTodos(
+      toolConditionFilter,
+      condiciones,
+      'Todas'
+    );
+
+    llenarSelectTiposHerramientaFormulario(
+      formToolType,
+      tipos
+    );
+
+    llenarSelectCondicionesHerramienta(
+      formToolCondition,
+      catalogosHerramientas.condiciones || []
+    );
+
+    toolProvidersList.innerHTML = '';
+
+    (
+      catalogosHerramientas.proveedores || []
+    ).forEach(
+      proveedor => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          proveedor;
+
+        toolProvidersList.appendChild(
+          option
+        );
+      }
+    );
+  }
+
+  function llenarSelectObjetosConTodos(
+    select,
+    valores,
+    etiquetaTodos
+  ) {
+    const actual =
+      select.value;
+
+    select.innerHTML = '';
+
+    const todos =
+      document.createElement(
+        'option'
+      );
+
+    todos.value = '';
+    todos.textContent =
+      etiquetaTodos;
+
+    select.appendChild(
+      todos
+    );
+
+    valores.forEach(item => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        String(
+          item.value || ''
+        );
+
+      option.textContent =
+        item.text || item.value;
+
+      select.appendChild(
+        option
+      );
+    });
+
+    if (
+      Array.from(
+        select.options
+      ).some(
+        option =>
+          option.value === actual
+      )
+    ) {
+      select.value =
+        actual;
+    }
+  }
+
+  function llenarSelectTiposHerramientaFormulario(
+    select,
+    tipos
+  ) {
+    const actual =
+      select.value;
+
+    select.innerHTML = '';
+
+    tipos
+      .filter(tipo =>
+        String(
+          tipo.estado || ''
+        ).toUpperCase() ===
+          'ACTIVO' ||
+        tipo.idTipo === actual
+      )
+      .sort((a, b) =>
+        String(
+          a.tipoHerramienta || ''
+        ).localeCompare(
+          String(
+            b.tipoHerramienta || ''
+          ),
+          'es'
+        )
+      )
+      .forEach(tipo => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          tipo.idTipo;
+
+        option.textContent =
+          `${tipo.tipoHerramienta} · ${formatearTexto(
+            tipo.categoria
+          )}`;
+
+        option.dataset.requiereSerie =
+          tipo.requiereSerie ||
+          'NO';
+
+        select.appendChild(
+          option
+        );
+      });
+
+    if (
+      actual &&
+      Array.from(
+        select.options
+      ).some(
+        option =>
+          option.value === actual
+      )
+    ) {
+      select.value =
+        actual;
+    } else if (
+      select.options.length
+    ) {
+      select.selectedIndex =
+        0;
+    }
+  }
+
+  function llenarSelectCondicionesHerramienta(
+    select,
+    condiciones
+  ) {
+    const actual =
+      select.value;
+
+    select.innerHTML = '';
+
+    condiciones
+      .filter(item =>
+        String(
+          item.estado || ''
+        ).toUpperCase() ===
+          'ACTIVO' ||
+        item.condicionFisica === actual
+      )
+      .forEach(item => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          item.condicionFisica;
+
+        option.textContent =
+          formatearTexto(
+            item.condicionFisica
+          );
+
+        option.title =
+          item.descripcion || '';
+
+        select.appendChild(
+          option
+        );
+      });
+
+    if (
+      actual &&
+      Array.from(
+        select.options
+      ).some(
+        option =>
+          option.value === actual
+      )
+    ) {
+      select.value =
+        actual;
+    } else if (
+      Array.from(
+        select.options
+      ).some(
+        option =>
+          option.value === 'NUEVA'
+      )
+    ) {
+      select.value = 'NUEVA';
+    } else if (
+      select.options.length
+    ) {
+      select.selectedIndex = 0;
+    }
+  }
+
+  function renderizarHerramientas() {
+    const texto =
+      normalizarBusqueda(
+        toolSearch.value
+      );
+
+    const categoria =
+      String(
+        toolCategoryFilter.value || ''
+      ).toUpperCase();
+
+    const idTipo =
+      String(
+        toolTypeFilter.value || ''
+      );
+
+    const condicion =
+      String(
+        toolConditionFilter.value || ''
+      ).toUpperCase();
+
+    const serie =
+      String(
+        toolSeriesFilter.value || ''
+      ).toUpperCase();
+
+    const tiposPorId =
+      new Map(
+        (
+          catalogosHerramientas.tipos || []
+        ).map(tipo => [
+          tipo.idTipo,
+          tipo
+        ])
+      );
+
+    const filtradas =
+      herramientas.filter(
+        herramienta => {
+          const tipo =
+            tiposPorId.get(
+              herramienta.idTipo
+            ) || {};
+
+          const coincideTexto =
+            !texto ||
+            normalizarBusqueda([
+              herramienta.idHerramienta,
+              herramienta.codigoInterno,
+              herramienta.tipoHerramienta,
+              herramienta.marca,
+              herramienta.modelo,
+              herramienta.serie,
+              herramienta.proveedor,
+              herramienta.documentoCompra
+            ].join(' ')).includes(
+              texto
+            );
+
+          const coincideCategoria =
+            !categoria ||
+            String(
+              tipo.categoria || ''
+            ).toUpperCase() ===
+              categoria;
+
+          const coincideTipo =
+            !idTipo ||
+            herramienta.idTipo ===
+              idTipo;
+
+          const coincideCondicion =
+            !condicion ||
+            String(
+              herramienta.condicionFisica || ''
+            ).toUpperCase() ===
+              condicion;
+
+          const tieneSerie =
+            Boolean(
+              String(
+                herramienta.serie || ''
+              ).trim()
+            );
+
+          const coincideSerie =
+            !serie ||
+            (
+              serie === 'CON_SERIE' &&
+              tieneSerie
+            ) ||
+            (
+              serie === 'SIN_SERIE' &&
+              !tieneSerie
+            );
+
+          return (
+            coincideTexto &&
+            coincideCategoria &&
+            coincideTipo &&
+            coincideCondicion &&
+            coincideSerie
+          );
+        }
+      );
+
+    toolsTableBody.innerHTML = '';
+
+    filtradas.forEach(
+      herramienta => {
+        toolsTableBody.appendChild(
+          crearFilaHerramienta(
+            herramienta
+          )
+        );
+      }
+    );
+
+    toolsLoading.hidden = true;
+    toolsTable.hidden =
+      filtradas.length === 0;
+    toolsEmpty.hidden =
+      filtradas.length !== 0;
+  }
+
+  function crearFilaHerramienta(
+    herramienta
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const celdaNombre =
+      document.createElement(
+        'td'
+      );
+
+    celdaNombre.className =
+      'tool-name-cell';
+
+    celdaNombre.innerHTML =
+      `<strong>${escaparHtml(
+        herramienta.tipoHerramienta ||
+        'Sin tipo'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        herramienta.idHerramienta || ''
+      )}</small>` +
+      `<span class="tool-code">${escaparHtml(
+        herramienta.codigoInterno ||
+        'Sin código'
+      )}</span>`;
+
+    fila.appendChild(
+      celdaNombre
+    );
+
+    const celdaDetalle =
+      document.createElement(
+        'td'
+      );
+
+    celdaDetalle.className =
+      'tool-detail-cell';
+
+    celdaDetalle.innerHTML =
+      `<strong>${escaparHtml(
+        herramienta.marca ||
+        'Sin marca'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        herramienta.modelo ||
+        'Sin modelo'
+      )}</small>`;
+
+    fila.appendChild(
+      celdaDetalle
+    );
+
+    fila.appendChild(
+      crearCelda(
+        herramienta.serie ||
+        'Sin serie'
+      )
+    );
+
+    const celdaCondicion =
+      document.createElement(
+        'td'
+      );
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    insignia.className =
+      'condition-badge';
+
+    insignia.textContent =
+      formatearTexto(
+        herramienta.condicionFisica ||
+        'Sin condición'
+      );
+
+    celdaCondicion.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      celdaCondicion
+    );
+
+    const celdaCompra =
+      document.createElement(
+        'td'
+      );
+
+    celdaCompra.className =
+      'tool-purchase-cell';
+
+    celdaCompra.innerHTML =
+      `<strong>${escaparHtml(
+        formatearCostoHerramienta(
+          herramienta.costoCompra
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          herramienta.fechaCompra,
+          herramienta.proveedor
+        ].filter(Boolean).join(' · ') ||
+        'Sin datos de compra'
+      )}</small>`;
+
+    fila.appendChild(
+      celdaCompra
+    );
+
+    const uso =
+      herramienta.uso || {};
+
+    const celdaUso =
+      document.createElement(
+        'td'
+      );
+
+    celdaUso.className =
+      'tool-usage-cell';
+
+    celdaUso.innerHTML =
+      `<strong>${Number(
+        uso.stockRegistros || 0
+      )} en stock</strong>` +
+      `<small>${Number(
+        uso.movimientos || 0
+      )} movimientos</small>`;
+
+    fila.appendChild(
+      celdaUso
+    );
+
+    const celdaAcciones =
+      document.createElement(
+        'td'
+      );
+
+    celdaAcciones.className =
+      'actions-cell';
+
+    if (puedeEditarHerramientas) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarHerramienta(
+              herramienta
+            )
+        )
+      );
+
+    } else {
+      celdaAcciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      celdaAcciones
+    );
+
+    return fila;
+  }
+
+  function formatearCostoHerramienta(
+    valor
+  ) {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    if (
+      !Number.isFinite(
+        numero
+      ) ||
+      numero === 0
+    ) {
+      return 'Sin costo';
+    }
+
+    return (
+      'S/ ' +
+      numero.toLocaleString(
+        'es-PE',
+        {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }
+      )
+    );
+  }
+
+  function abrirNuevaHerramienta() {
+    toolForm.reset();
+    formToolId.value = '';
+    formToolCode.value = '';
+    toolModalTitle.textContent =
+      'Nueva herramienta';
+    saveToolButton.textContent =
+      'Registrar herramienta';
+    toolFormMessage.textContent =
+      '';
+
+    actualizarCatalogosHerramientas();
+    actualizarRequisitoSerieHerramienta();
+
+    toolModal.hidden = false;
+    formToolType.focus();
+  }
+
+  function abrirEditarHerramienta(
+    herramienta
+  ) {
+    actualizarCatalogosHerramientas();
+
+    asegurarTipoHerramientaFormulario(
+      herramienta
+    );
+
+    asegurarCondicionHerramientaFormulario(
+      herramienta.condicionFisica
+    );
+
+    formToolId.value =
+      herramienta.idHerramienta || '';
+
+    formToolCode.value =
+      herramienta.codigoInterno || '';
+
+    formToolType.value =
+      herramienta.idTipo || '';
+
+    formToolBrand.value =
+      herramienta.marca || '';
+
+    formToolModel.value =
+      herramienta.modelo || '';
+
+    formToolSeries.value =
+      herramienta.serie || '';
+
+    formToolCondition.value =
+      herramienta.condicionFisica || '';
+
+    formToolPurchaseDate.value =
+      herramienta.fechaCompraIso || '';
+
+    formToolPurchaseCost.value =
+      Number(
+        herramienta.costoCompra || 0
+      ) || '';
+
+    formToolProvider.value =
+      herramienta.proveedor || '';
+
+    formToolPurchaseDocument.value =
+      herramienta.documentoCompra || '';
+
+    formToolNotes.value =
+      herramienta.observaciones || '';
+
+    toolModalTitle.textContent =
+      'Editar herramienta';
+
+    saveToolButton.textContent =
+      'Guardar cambios';
+
+    toolFormMessage.textContent =
+      '';
+
+    actualizarRequisitoSerieHerramienta();
+
+    toolModal.hidden = false;
+    formToolCode.focus();
+  }
+
+  function asegurarTipoHerramientaFormulario(
+    herramienta
+  ) {
+    const existe =
+      Array.from(
+        formToolType.options
+      ).some(
+        option =>
+          option.value ===
+          herramienta.idTipo
+      );
+
+    if (existe) {
+      return;
+    }
+
+    const option =
+      document.createElement(
+        'option'
+      );
+
+    option.value =
+      herramienta.idTipo;
+
+    option.textContent =
+      herramienta.tipoHerramienta ||
+      herramienta.idTipo;
+
+    option.dataset.requiereSerie =
+      'NO';
+
+    formToolType.appendChild(
+      option
+    );
+  }
+
+  function asegurarCondicionHerramientaFormulario(
+    condicion
+  ) {
+    const valor =
+      String(
+        condicion || ''
+      ).toUpperCase();
+
+    if (!valor) {
+      return;
+    }
+
+    const existe =
+      Array.from(
+        formToolCondition.options
+      ).some(
+        option =>
+          option.value === valor
+      );
+
+    if (existe) {
+      return;
+    }
+
+    const option =
+      document.createElement(
+        'option'
+      );
+
+    option.value =
+      valor;
+
+    option.textContent =
+      formatearTexto(
+        valor
+      );
+
+    formToolCondition.appendChild(
+      option
+    );
+  }
+
+  function actualizarRequisitoSerieHerramienta() {
+    const option =
+      formToolType.options[
+        formToolType.selectedIndex
+      ];
+
+    const requiere =
+      option &&
+      String(
+        option.dataset.requiereSerie ||
+        'NO'
+      ).toUpperCase() ===
+        'SI';
+
+    formToolSeries.required =
+      requiere;
+
+    formToolSeriesLabel.textContent =
+      requiere
+        ? 'Serie *'
+        : 'Serie';
+
+    formToolSeriesLabel.classList.toggle(
+      'required-series',
+      requiere
+    );
+
+    formToolSeriesHelp.textContent =
+      requiere
+        ? 'La serie es obligatoria para este tipo.'
+        : 'La serie es opcional para este tipo.';
+  }
+
+  function cerrarFormularioHerramienta() {
+    toolModal.hidden = true;
+    toolFormMessage.textContent = '';
+  }
+
+  async function guardarHerramienta(
+    event
+  ) {
+    event.preventDefault();
+    toolFormMessage.textContent = '';
+
+    const payload = {
+      accion:
+        'guardar_herramienta',
+      token:
+        auth.token,
+      idHerramienta:
+        formToolId.value.trim(),
+      codigoInterno:
+        formToolCode.value.trim(),
+      idTipo:
+        formToolType.value,
+      marca:
+        formToolBrand.value.trim(),
+      modelo:
+        formToolModel.value.trim(),
+      serie:
+        formToolSeries.value.trim(),
+      condicionFisica:
+        formToolCondition.value,
+      fechaCompra:
+        formToolPurchaseDate.value,
+      costoCompra:
+        formToolPurchaseCost.value,
+      proveedor:
+        formToolProvider.value.trim(),
+      documentoCompra:
+        formToolPurchaseDocument.value.trim(),
+      observaciones:
+        formToolNotes.value.trim()
+    };
+
+    if (
+      !payload.idTipo ||
+      !payload.condicionFisica
+    ) {
+      toolFormMessage.textContent =
+        'Completa los campos obligatorios.';
+      return;
+    }
+
+    if (
+      formToolSeries.required &&
+      !payload.serie
+    ) {
+      toolFormMessage.textContent =
+        'Este tipo de herramienta requiere número de serie.';
+      return;
+    }
+
+    saveToolButton.disabled = true;
+    saveToolButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar la herramienta.'
+        );
+      }
+
+      if (respuesta.herramienta) {
+        incorporarHerramientaLocal(
+          respuesta.herramienta
+        );
+      }
+
+      cerrarFormularioHerramienta();
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarHerramientas();
+
+    } catch (error) {
+      toolFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveToolButton.disabled = false;
+
+      saveToolButton.textContent =
+        formToolId.value
+          ? 'Guardar cambios'
+          : 'Registrar herramienta';
+    }
+  }
+
+  function incorporarHerramientaLocal(
+    herramienta
+  ) {
+    const id =
+      String(
+        herramienta.idHerramienta || ''
+      );
+
+    const indice =
+      herramientas.findIndex(
+        item =>
+          String(
+            item.idHerramienta || ''
+          ) === id
+      );
+
+    if (indice === -1) {
+      herramientas.unshift(
+        herramienta
+      );
+    } else {
+      herramientas[indice] = {
+        ...herramientas[indice],
+        ...herramienta
+      };
+    }
+
+    renderizarHerramientas();
+  }
+
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    toolsView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
     crewsView.hidden = true;
@@ -1440,6 +2512,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    toolsView.hidden = true;
     catalogView.hidden = true;
     supervisorsView.hidden = true;
     crewsView.hidden = true;
@@ -2102,6 +3175,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
     crewsView.hidden = true;
@@ -2917,6 +3991,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
@@ -3583,6 +4658,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
@@ -3592,6 +4668,7 @@
   }
 
   function mostrarDashboard() {
+    toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
@@ -4112,6 +5189,7 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    herramientas = [];
     tiposCatalogo = [];
     almacenes = [];
     supervisores = [];

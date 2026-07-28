@@ -908,3 +908,79 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.tool-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.tools-table {
+  min-width: 1100px;
+}
+
+.tool-name-cell strong,
+.tool-name-cell small,
+.tool-detail-cell strong,
+.tool-detail-cell small,
+.tool-purchase-cell strong,
+.tool-purchase-cell small,
+.tool-usage-cell strong,
+.tool-usage-cell small {
+  display: block;
+}
+
+.tool-name-cell small,
+.tool-detail-cell small,
+.tool-purchase-cell small,
+.tool-usage-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.tool-code {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  margin-top: 7px;
+  padding: 0 9px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--primary);
+  font-family: Consolas, monospace;
+  font-weight: 800;
+}
+
+.condition-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.field-help {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.required-series {
+  color: var(--danger);
+}
+
+@media (max-width: 1100px) {
+  .tool-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .tool-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}

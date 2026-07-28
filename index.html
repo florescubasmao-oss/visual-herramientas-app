@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.7.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.8.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -265,6 +265,134 @@
 
 
 
+
+
+
+    <main id="toolsView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backToolsButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Operación</p>
+            <h2>Registro de herramientas</h2>
+            <p class="subtitle">
+              Herramientas unitarias, códigos, series y datos de compra.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="newToolButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nueva herramienta
+          </button>
+
+          <button
+            id="refreshToolsButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="filters-card"
+        aria-label="Filtros de herramientas"
+      >
+        <div class="tool-filters-grid">
+          <div class="field-group">
+            <label for="toolSearch">Buscar</label>
+            <input
+              id="toolSearch"
+              type="search"
+              placeholder="Código, tipo, marca, modelo o serie"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="toolCategoryFilter">Categoría</label>
+            <select id="toolCategoryFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="toolTypeFilter">Tipo</label>
+            <select id="toolTypeFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="toolConditionFilter">Condición</label>
+            <select id="toolConditionFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="toolSeriesFilter">Serie</label>
+            <select id="toolSeriesFilter">
+              <option value="">Todos</option>
+              <option value="CON_SERIE">Con serie</option>
+              <option value="SIN_SERIE">Sin serie</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div
+          id="toolsLoading"
+          class="loading-state"
+        >
+          Selecciona Actualizar para cargar las herramientas.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="toolsTable"
+            class="data-table tools-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Herramienta</th>
+                <th>Marca / modelo</th>
+                <th>Serie</th>
+                <th>Condición</th>
+                <th>Compra</th>
+                <th>Uso</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="toolsTableBody"></tbody>
+          </table>
+        </div>
+
+        <p
+          id="toolsEmpty"
+          class="empty-state"
+          hidden
+        >
+          No se encontraron herramientas con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="catalogView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -784,6 +912,135 @@
 
 
 
+
+
+  <div id="toolModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card modal-card-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="toolModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Registro unitario</p>
+          <h2 id="toolModalTitle">Nueva herramienta</h2>
+        </div>
+
+        <button
+          id="closeToolModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="toolForm" class="user-form">
+        <input id="formToolId" type="hidden">
+
+        <div class="form-grid form-grid-3">
+          <div class="field-group">
+            <label for="formToolCode">Código interno</label>
+            <input
+              id="formToolCode"
+              type="text"
+              placeholder="Vacío = generar VH-000001"
+            >
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formToolType">Tipo de herramienta</label>
+            <select id="formToolType" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formToolBrand">Marca</label>
+            <input id="formToolBrand" type="text">
+          </div>
+
+          <div class="field-group">
+            <label for="formToolModel">Modelo</label>
+            <input id="formToolModel" type="text">
+          </div>
+
+          <div class="field-group">
+            <label id="formToolSeriesLabel" for="formToolSeries">Serie</label>
+            <input id="formToolSeries" type="text">
+            <small id="formToolSeriesHelp" class="field-help">
+              La serie es opcional para este tipo.
+            </small>
+          </div>
+
+          <div class="field-group">
+            <label for="formToolCondition">Condición física</label>
+            <select id="formToolCondition" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formToolPurchaseDate">Fecha de compra</label>
+            <input id="formToolPurchaseDate" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="formToolPurchaseCost">Costo de compra (S/)</label>
+            <input
+              id="formToolPurchaseCost"
+              type="number"
+              min="0"
+              step="0.01"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formToolProvider">Proveedor</label>
+            <input
+              id="formToolProvider"
+              type="text"
+              list="toolProvidersList"
+            >
+            <datalist id="toolProvidersList"></datalist>
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formToolPurchaseDocument">Documento de compra</label>
+            <input
+              id="formToolPurchaseDocument"
+              type="text"
+              placeholder="Factura, boleta u otro documento"
+            >
+          </div>
+
+          <div class="field-group field-span-3">
+            <label for="formToolNotes">Observaciones</label>
+            <textarea id="formToolNotes" rows="3"></textarea>
+          </div>
+        </div>
+
+        <p id="toolFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelToolFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveToolButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Guardar herramienta
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="catalogModal" class="modal-backdrop" hidden>
     <section
       class="modal-card"
@@ -1289,7 +1546,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.7.0"></script>
-  <script src="js/app.js?v=0.7.0"></script>
+  <script src="js/config.js?v=0.8.0"></script>
+  <script src="js/app.js?v=0.8.0"></script>
 </body>
 </html>
