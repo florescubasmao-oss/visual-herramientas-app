@@ -11312,7 +11312,7 @@
             item.idTipo,
             item.marcaReferencial,
             item.condicionFisica,
-            item.proveedor,
+            item.proveedorReferencial,
             item.mensaje,
             item.idMovimiento
           ].join(' ')).includes(
@@ -11563,7 +11563,7 @@
             item.tipoCosto ||
             'SIN_TIPO_COSTO'
           ),
-          item.proveedor
+          item.proveedorReferencial
         ].filter(Boolean).join(' · ')
       )}</small>`;
 
