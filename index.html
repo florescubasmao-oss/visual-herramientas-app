@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.9.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.10.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -269,6 +269,172 @@
 
 
 
+
+
+
+    <main id="stockView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backStockButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Operación</p>
+            <h2>Stock actual</h2>
+            <p class="subtitle">
+              Ubicación vigente, responsable y cantidades. Las modificaciones se realizan únicamente desde Movimientos.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="downloadStockButton"
+            class="secondary-button"
+            type="button"
+            hidden
+          >
+            Descargar CSV
+          </button>
+
+          <button
+            id="refreshStockButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="stock-summary-grid"
+        aria-label="Resumen del stock"
+      >
+        <article class="stock-summary-card">
+          <span>Registros visibles</span>
+          <strong id="stockSummaryRecords">0</strong>
+        </article>
+
+        <article class="stock-summary-card">
+          <span>Herramientas unitarias</span>
+          <strong id="stockSummaryUnitary">0</strong>
+        </article>
+
+        <article class="stock-summary-card">
+          <span>Disponibles</span>
+          <strong id="stockSummaryAvailable">0</strong>
+        </article>
+
+        <article class="stock-summary-card">
+          <span>Asignados</span>
+          <strong id="stockSummaryAssigned">0</strong>
+        </article>
+      </section>
+
+      <section
+        class="filters-card"
+        aria-label="Filtros del stock"
+      >
+        <div class="stock-filters-grid">
+          <div class="field-group">
+            <label for="stockSearch">Buscar</label>
+            <input
+              id="stockSearch"
+              type="search"
+              placeholder="Artículo, código, serie, responsable o DNI"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="stockSiteFilter">Sede</label>
+            <select id="stockSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="stockLocationFilter">Ubicación</label>
+            <select id="stockLocationFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="stockCategoryFilter">Categoría</label>
+            <select id="stockCategoryFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="stockTypeFilter">Tipo</label>
+            <select id="stockTypeFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="stockControlFilter">Control</label>
+            <select id="stockControlFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="stockStateFilter">Estado</label>
+            <select id="stockStateFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div
+          id="stockLoading"
+          class="loading-state"
+        >
+          Selecciona Actualizar para cargar el stock.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="stockTable"
+            class="data-table stock-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Artículo</th>
+                <th>Identificación</th>
+                <th>Ubicación actual</th>
+                <th>Responsable</th>
+                <th>Cantidad</th>
+                <th>Estado</th>
+                <th>Actualización</th>
+                <th>Observaciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="stockTableBody"></tbody>
+          </table>
+        </div>
+
+        <p
+          id="stockEmpty"
+          class="empty-state"
+          hidden
+        >
+          No se encontraron registros con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="movementsView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -1955,7 +2121,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.9.0"></script>
-  <script src="js/app.js?v=0.9.0"></script>
+  <script src="js/config.js?v=0.10.0"></script>
+  <script src="js/app.js?v=0.10.0"></script>
 </body>
 </html>

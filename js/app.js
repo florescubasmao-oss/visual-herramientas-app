@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const stockView = document.getElementById('stockView');
   const movementsView = document.getElementById('movementsView');
   const toolsView = document.getElementById('toolsView');
   const catalogView = document.getElementById('catalogView');
@@ -29,6 +30,25 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backStockButton = document.getElementById('backStockButton');
+  const downloadStockButton = document.getElementById('downloadStockButton');
+  const refreshStockButton = document.getElementById('refreshStockButton');
+  const stockSearch = document.getElementById('stockSearch');
+  const stockSiteFilter = document.getElementById('stockSiteFilter');
+  const stockLocationFilter = document.getElementById('stockLocationFilter');
+  const stockCategoryFilter = document.getElementById('stockCategoryFilter');
+  const stockTypeFilter = document.getElementById('stockTypeFilter');
+  const stockControlFilter = document.getElementById('stockControlFilter');
+  const stockStateFilter = document.getElementById('stockStateFilter');
+  const stockLoading = document.getElementById('stockLoading');
+  const stockTable = document.getElementById('stockTable');
+  const stockTableBody = document.getElementById('stockTableBody');
+  const stockEmpty = document.getElementById('stockEmpty');
+  const stockSummaryRecords = document.getElementById('stockSummaryRecords');
+  const stockSummaryUnitary = document.getElementById('stockSummaryUnitary');
+  const stockSummaryAvailable = document.getElementById('stockSummaryAvailable');
+  const stockSummaryAssigned = document.getElementById('stockSummaryAssigned');
 
   const backMovementsButton = document.getElementById('backMovementsButton');
   const newMovementButton = document.getElementById('newMovementButton');
@@ -278,6 +298,17 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let stockActual = [];
+  let stockFiltradoActual = [];
+  let puedeDescargarStock = false;
+  let catalogosStockActual = {
+    sedes: [],
+    categorias: [],
+    tiposControl: [],
+    tiposUbicacion: [],
+    estadosStock: [],
+    tiposArticulo: []
+  };
   let movimientos = [];
   let puedeRegistrarMovimientos = false;
   let catalogosMovimientos = {
@@ -361,6 +392,23 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backStockButton.addEventListener('click', mostrarDashboard);
+    refreshStockButton.addEventListener('click', cargarStockActual);
+    downloadStockButton.addEventListener('click', descargarStockCsv);
+
+    [
+      stockSearch,
+      stockSiteFilter,
+      stockLocationFilter,
+      stockCategoryFilter,
+      stockTypeFilter,
+      stockControlFilter,
+      stockStateFilter
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarStockActual);
+      control.addEventListener('change', renderizarStockActual);
+    });
+
     backMovementsButton.addEventListener('click', mostrarDashboard);
     newMovementButton.addEventListener('click', abrirNuevoMovimiento);
     refreshMovementsButton.addEventListener('click', cargarMovimientos);
@@ -774,6 +822,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'STOCK_ACTUAL') {
+      abrirStockActual();
+      return;
+    }
+
     if (modulo === 'MOVIMIENTOS') {
       abrirMovimientos();
       return;
@@ -819,8 +872,701 @@
 
 
 
+
+  async function abrirStockActual() {
+    dashboardView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    stockView.hidden = false;
+
+    await cargarStockActual();
+  }
+
+  async function cargarStockActual() {
+    stockLoading.hidden = false;
+    stockLoading.textContent = 'Cargando stock actual…';
+    stockTable.hidden = true;
+    stockEmpty.hidden = true;
+    refreshStockButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_stock_actual',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cargar el stock actual.'
+        );
+      }
+
+      stockActual =
+        Array.isArray(
+          respuesta.stock
+        )
+          ? respuesta.stock
+          : [];
+
+      puedeDescargarStock =
+        Boolean(
+          respuesta.puedeDescargar
+        );
+
+      catalogosStockActual =
+        respuesta.catalogos || {
+          sedes: [],
+          categorias: [],
+          tiposControl: [],
+          tiposUbicacion: [],
+          estadosStock: [],
+          tiposArticulo: []
+        };
+
+      downloadStockButton.hidden =
+        !puedeDescargarStock;
+
+      actualizarCatalogosStockActual();
+      renderizarStockActual();
+      stockLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      stockLoading.hidden = false;
+      stockLoading.textContent = error.message;
+      stockTable.hidden = true;
+
+    } finally {
+      refreshStockButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosStockActual() {
+    llenarSelectConTodos(
+      stockSiteFilter,
+      catalogosStockActual.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      stockLocationFilter,
+      catalogosStockActual.tiposUbicacion || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      stockCategoryFilter,
+      catalogosStockActual.categorias || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      stockControlFilter,
+      catalogosStockActual.tiposControl || [],
+      'Todos'
+    );
+
+    llenarSelectConTodos(
+      stockStateFilter,
+      catalogosStockActual.estadosStock || [],
+      'Todos'
+    );
+
+    const actual =
+      stockTypeFilter.value;
+
+    stockTypeFilter.innerHTML = '';
+
+    const todos =
+      document.createElement(
+        'option'
+      );
+
+    todos.value = '';
+    todos.textContent = 'Todos';
+
+    stockTypeFilter.appendChild(
+      todos
+    );
+
+    (
+      catalogosStockActual.tiposArticulo || []
+    ).forEach(tipo => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        tipo.idTipo;
+
+      option.textContent =
+        tipo.tipoHerramienta;
+
+      stockTypeFilter.appendChild(
+        option
+      );
+    });
+
+    if (
+      actual &&
+      Array.from(
+        stockTypeFilter.options
+      ).some(option =>
+        option.value === actual
+      )
+    ) {
+      stockTypeFilter.value =
+        actual;
+    }
+  }
+
+  function renderizarStockActual() {
+    const texto =
+      normalizarBusqueda(
+        stockSearch.value
+      );
+
+    const sede =
+      String(
+        stockSiteFilter.value || ''
+      ).toUpperCase();
+
+    const ubicacion =
+      String(
+        stockLocationFilter.value || ''
+      ).toUpperCase();
+
+    const categoria =
+      String(
+        stockCategoryFilter.value || ''
+      ).toUpperCase();
+
+    const idTipo =
+      String(
+        stockTypeFilter.value || ''
+      );
+
+    const control =
+      String(
+        stockControlFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        stockStateFilter.value || ''
+      ).toUpperCase();
+
+    stockFiltradoActual =
+      stockActual.filter(item => {
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            item.idStock,
+            item.idTipo,
+            item.tipoHerramienta,
+            item.categoria,
+            item.idHerramienta,
+            item.codigoInterno,
+            item.marca,
+            item.modelo,
+            item.serie,
+            item.condicionFisica,
+            item.idAlmacen,
+            item.idCuadrilla,
+            item.idSupervisor,
+            item.dniResponsable,
+            item.responsableActual,
+            item.observaciones
+          ].join(' ')).includes(
+            texto
+          );
+
+        const coincideSede =
+          !sede ||
+          item.sedeActual === sede;
+
+        const coincideUbicacion =
+          !ubicacion ||
+          item.tipoUbicacion ===
+            ubicacion;
+
+        const coincideCategoria =
+          !categoria ||
+          item.categoria ===
+            categoria;
+
+        const coincideTipo =
+          !idTipo ||
+          item.idTipo ===
+            idTipo;
+
+        const coincideControl =
+          !control ||
+          item.tipoControl ===
+            control;
+
+        const coincideEstado =
+          !estado ||
+          item.estadoStock ===
+            estado;
+
+        return (
+          coincideTexto &&
+          coincideSede &&
+          coincideUbicacion &&
+          coincideCategoria &&
+          coincideTipo &&
+          coincideControl &&
+          coincideEstado
+        );
+      });
+
+    stockTableBody.innerHTML = '';
+
+    stockFiltradoActual.forEach(item => {
+      stockTableBody.appendChild(
+        crearFilaStockActual(
+          item
+        )
+      );
+    });
+
+    stockSummaryRecords.textContent =
+      String(
+        stockFiltradoActual.length
+      );
+
+    stockSummaryUnitary.textContent =
+      String(
+        stockFiltradoActual.filter(item =>
+          item.tipoControl ===
+          'UNITARIO'
+        ).length
+      );
+
+    stockSummaryAvailable.textContent =
+      String(
+        stockFiltradoActual.filter(item =>
+          item.estadoStock ===
+          'DISPONIBLE'
+        ).length
+      );
+
+    stockSummaryAssigned.textContent =
+      String(
+        stockFiltradoActual.filter(item =>
+          item.estadoStock ===
+          'ASIGNADO'
+        ).length
+      );
+
+    stockLoading.hidden = true;
+    stockTable.hidden =
+      stockFiltradoActual.length === 0;
+    stockEmpty.hidden =
+      stockFiltradoActual.length !== 0;
+  }
+
+  function crearFilaStockActual(
+    item
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const celdaArticulo =
+      document.createElement(
+        'td'
+      );
+
+    celdaArticulo.className =
+      'stock-main-cell';
+
+    celdaArticulo.innerHTML =
+      `<strong>${escaparHtml(
+        item.tipoHerramienta ||
+        'Sin artículo'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          formatearTexto(
+            item.categoria
+          ),
+          formatearTexto(
+            item.tipoControl
+          ),
+          item.idTipo
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      celdaArticulo
+    );
+
+    const celdaIdentificacion =
+      document.createElement(
+        'td'
+      );
+
+    celdaIdentificacion.className =
+      'stock-identification-cell';
+
+    if (
+      item.tipoControl ===
+      'UNITARIO'
+    ) {
+      celdaIdentificacion.innerHTML =
+        `<strong>${escaparHtml(
+          [
+            item.marca,
+            item.modelo
+          ].filter(Boolean).join(' ') ||
+          'Sin marca/modelo'
+        )}</strong>` +
+        `<small>${escaparHtml(
+          item.serie
+            ? `Serie: ${item.serie}`
+            : 'Sin serie'
+        )}</small>` +
+        `<span class="stock-code">${escaparHtml(
+          item.codigoInterno ||
+          item.idHerramienta ||
+          'Sin código'
+        )}</span>`;
+
+    } else {
+      celdaIdentificacion.innerHTML =
+        `<strong>Control por cantidad</strong>` +
+        `<small>${escaparHtml(
+          item.idStock
+        )}</small>`;
+    }
+
+    fila.appendChild(
+      celdaIdentificacion
+    );
+
+    const celdaUbicacion =
+      document.createElement(
+        'td'
+      );
+
+    celdaUbicacion.className =
+      'stock-location-cell';
+
+    celdaUbicacion.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          item.tipoUbicacion
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          formatearTexto(
+            item.sedeActual
+          ),
+          item.idAlmacen,
+          item.idCuadrilla,
+          item.idSupervisor
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      celdaUbicacion
+    );
+
+    const celdaResponsable =
+      document.createElement(
+        'td'
+      );
+
+    celdaResponsable.className =
+      'stock-responsible-cell';
+
+    celdaResponsable.innerHTML =
+      `<strong>${escaparHtml(
+        item.responsableActual ||
+        'Sin responsable'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        item.dniResponsable
+          ? `DNI: ${item.dniResponsable}`
+          : 'Sin DNI'
+      )}</small>`;
+
+    fila.appendChild(
+      celdaResponsable
+    );
+
+    fila.appendChild(
+      crearCelda(
+        `${formatearCantidadStock(
+          item.cantidad
+        )} ${formatearTexto(
+          item.unidadMedida
+        )}`
+      )
+    );
+
+    const celdaEstado =
+      document.createElement(
+        'td'
+      );
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    insignia.className =
+      'status-badge ' +
+      (
+        item.estadoStock ===
+          'DISPONIBLE'
+          ? 'status-active'
+          : item.estadoStock ===
+              'DADO_DE_BAJA'
+            ? 'status-inactive'
+            : ''
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        item.estadoStock ||
+        'Sin estado'
+      );
+
+    celdaEstado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      celdaEstado
+    );
+
+    const celdaActualizacion =
+      document.createElement(
+        'td'
+      );
+
+    celdaActualizacion.className =
+      'stock-update-cell';
+
+    celdaActualizacion.innerHTML =
+      `<strong>${escaparHtml(
+        item.fechaActualizacion ||
+        'Sin fecha'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        item.usuarioActualiza ||
+        'Sin usuario'
+      )}</small>`;
+
+    fila.appendChild(
+      celdaActualizacion
+    );
+
+    const celdaObservaciones =
+      document.createElement(
+        'td'
+      );
+
+    celdaObservaciones.className =
+      'stock-notes';
+
+    celdaObservaciones.textContent =
+      item.observaciones ||
+      'Sin observaciones';
+
+    fila.appendChild(
+      celdaObservaciones
+    );
+
+    return fila;
+  }
+
+  function formatearCantidadStock(
+    valor
+  ) {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    return numero.toLocaleString(
+      'es-PE',
+      {
+        minimumFractionDigits:
+          Number.isInteger(numero)
+            ? 0
+            : 2,
+        maximumFractionDigits: 2
+      }
+    );
+  }
+
+  function descargarStockCsv() {
+    if (
+      !puedeDescargarStock
+    ) {
+      window.alert(
+        'No tienes permiso para descargar el stock.'
+      );
+
+      return;
+    }
+
+    const encabezados = [
+      'ID_STOCK',
+      'ID_TIPO',
+      'TIPO_HERRAMIENTA',
+      'CATEGORIA',
+      'TIPO_CONTROL',
+      'ID_HERRAMIENTA',
+      'CODIGO_INTERNO',
+      'MARCA',
+      'MODELO',
+      'SERIE',
+      'CONDICION_FISICA',
+      'SEDE_ACTUAL',
+      'TIPO_UBICACION',
+      'ID_ALMACEN',
+      'ID_CUADRILLA',
+      'ID_SUPERVISOR',
+      'DNI_RESPONSABLE',
+      'RESPONSABLE_ACTUAL',
+      'CANTIDAD',
+      'UNIDAD_MEDIDA',
+      'ESTADO_STOCK',
+      'FECHA_ACTUALIZACION',
+      'USUARIO_ACTUALIZA',
+      'OBSERVACIONES'
+    ];
+
+    const filas =
+      stockFiltradoActual.map(item => [
+        item.idStock,
+        item.idTipo,
+        item.tipoHerramienta,
+        item.categoria,
+        item.tipoControl,
+        item.idHerramienta,
+        item.codigoInterno,
+        item.marca,
+        item.modelo,
+        item.serie,
+        item.condicionFisica,
+        item.sedeActual,
+        item.tipoUbicacion,
+        item.idAlmacen,
+        item.idCuadrilla,
+        item.idSupervisor,
+        item.dniResponsable,
+        item.responsableActual,
+        item.cantidad,
+        item.unidadMedida,
+        item.estadoStock,
+        item.fechaActualizacion,
+        item.usuarioActualiza,
+        item.observaciones
+      ]);
+
+    const contenido =
+      [
+        encabezados,
+        ...filas
+      ]
+        .map(fila =>
+          fila
+            .map(valor =>
+              escaparCsvStock(
+                valor
+              )
+            )
+            .join(';')
+        )
+        .join('\r\n');
+
+    const blob =
+      new Blob(
+        [
+          '\uFEFF',
+          contenido
+        ],
+        {
+          type:
+            'text/csv;charset=utf-8'
+        }
+      );
+
+    const enlace =
+      document.createElement(
+        'a'
+      );
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+    const fecha =
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    enlace.href =
+      url;
+
+    enlace.download =
+      `stock_actual_${fecha}.csv`;
+
+    document.body.appendChild(
+      enlace
+    );
+
+    enlace.click();
+    enlace.remove();
+
+    URL.revokeObjectURL(
+      url
+    );
+  }
+
+  function escaparCsvStock(
+    valor
+  ) {
+    const texto =
+      String(
+        valor ?? ''
+      );
+
+    return (
+      '"' +
+      texto.replace(
+        /"/g,
+        '""'
+      ) +
+      '"'
+    );
+  }
+
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    stockView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
@@ -2354,6 +3100,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    stockView.hidden = true;
     movementsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
@@ -3348,6 +4095,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
     warehousesView.hidden = true;
@@ -4179,6 +4927,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
@@ -4843,6 +5592,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
@@ -5660,6 +6410,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
@@ -6328,6 +7079,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
@@ -6339,6 +7091,7 @@
   }
 
   function mostrarDashboard() {
+    stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
@@ -6861,6 +7614,8 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    stockActual = [];
+    stockFiltradoActual = [];
     movimientos = [];
     herramientas = [];
     tiposCatalogo = [];

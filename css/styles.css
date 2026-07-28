@@ -1141,3 +1141,110 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.stock-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.stock-summary-card {
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.stock-summary-card span,
+.stock-summary-card strong {
+  display: block;
+}
+
+.stock-summary-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.stock-summary-card strong {
+  margin-top: 6px;
+  font-size: 1.55rem;
+}
+
+.stock-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(6, minmax(135px, 1fr));
+  gap: 14px;
+}
+
+.stock-table {
+  min-width: 1420px;
+}
+
+.stock-main-cell strong,
+.stock-main-cell small,
+.stock-identification-cell strong,
+.stock-identification-cell small,
+.stock-location-cell strong,
+.stock-location-cell small,
+.stock-responsible-cell strong,
+.stock-responsible-cell small,
+.stock-update-cell strong,
+.stock-update-cell small {
+  display: block;
+}
+
+.stock-main-cell small,
+.stock-identification-cell small,
+.stock-location-cell small,
+.stock-responsible-cell small,
+.stock-update-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.stock-code {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: var(--surface-soft);
+  color: var(--primary);
+  font-family: Consolas, monospace;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.stock-notes {
+  max-width: 310px;
+  white-space: normal;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+@media (max-width: 1250px) {
+  .stock-filters-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .stock-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stock-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .stock-summary-grid,
+  .stock-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}
