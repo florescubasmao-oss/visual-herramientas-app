@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const cargosView = document.getElementById('cargosView');
   const stockView = document.getElementById('stockView');
   const movementsView = document.getElementById('movementsView');
   const toolsView = document.getElementById('toolsView');
@@ -30,6 +31,46 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backCargosButton = document.getElementById('backCargosButton');
+  const newCargoButton = document.getElementById('newCargoButton');
+  const refreshCargosButton = document.getElementById('refreshCargosButton');
+  const cargoSearch = document.getElementById('cargoSearch');
+  const cargoSiteFilter = document.getElementById('cargoSiteFilter');
+  const cargoTypeFilter = document.getElementById('cargoTypeFilter');
+  const cargoStateFilter = document.getElementById('cargoStateFilter');
+  const cargoDateFrom = document.getElementById('cargoDateFrom');
+  const cargoDateTo = document.getElementById('cargoDateTo');
+  const cargosLoading = document.getElementById('cargosLoading');
+  const cargosTable = document.getElementById('cargosTable');
+  const cargosTableBody = document.getElementById('cargosTableBody');
+  const cargosEmpty = document.getElementById('cargosEmpty');
+  const cargoSummaryTotal = document.getElementById('cargoSummaryTotal');
+  const cargoSummaryIssued = document.getElementById('cargoSummaryIssued');
+  const cargoSummaryAccepted = document.getElementById('cargoSummaryAccepted');
+  const cargoSummaryClosed = document.getElementById('cargoSummaryClosed');
+
+  const cargoModal = document.getElementById('cargoModal');
+  const closeCargoModalButton = document.getElementById('closeCargoModalButton');
+  const cancelCargoFormButton = document.getElementById('cancelCargoFormButton');
+  const cargoForm = document.getElementById('cargoForm');
+  const cargoModalTitle = document.getElementById('cargoModalTitle');
+  const formCargoId = document.getElementById('formCargoId');
+  const formCargoDate = document.getElementById('formCargoDate');
+  const formCargoType = document.getElementById('formCargoType');
+  const formCargoEvidence = document.getElementById('formCargoEvidence');
+  const formCargoSignature = document.getElementById('formCargoSignature');
+  const cargoMovementSearch = document.getElementById('cargoMovementSearch');
+  const cargoMovementList = document.getElementById('cargoMovementList');
+  const cargoMovementEmpty = document.getElementById('cargoMovementEmpty');
+  const cargoRecipientName = document.getElementById('cargoRecipientName');
+  const cargoRecipientDni = document.getElementById('cargoRecipientDni');
+  const cargoRecipientSite = document.getElementById('cargoRecipientSite');
+  const cargoDeliverName = document.getElementById('cargoDeliverName');
+  const cargoSelectedCount = document.getElementById('cargoSelectedCount');
+  const formCargoNotes = document.getElementById('formCargoNotes');
+  const cargoFormMessage = document.getElementById('cargoFormMessage');
+  const saveCargoButton = document.getElementById('saveCargoButton');
 
   const backStockButton = document.getElementById('backStockButton');
   const downloadStockButton = document.getElementById('downloadStockButton');
@@ -298,6 +339,20 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let cargos = [];
+  let cargoSeleccionado = null;
+  let movimientosCargoSeleccionados = new Set();
+  let puedeRegistrarCargos = false;
+  let puedeEditarCargos = false;
+  let puedeAprobarCargos = false;
+  let puedeAnularCargos = false;
+  let puedeDescargarCargos = false;
+  let catalogosCargos = {
+    tiposCargo: [],
+    estadosCargo: [],
+    sedes: [],
+    movimientos: []
+  };
   let stockActual = [];
   let stockFiltradoActual = [];
   let puedeDescargarStock = false;
@@ -392,6 +447,33 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backCargosButton.addEventListener('click', mostrarDashboard);
+    newCargoButton.addEventListener('click', abrirNuevoCargo);
+    refreshCargosButton.addEventListener('click', cargarCargos);
+    closeCargoModalButton.addEventListener('click', cerrarFormularioCargo);
+    cancelCargoFormButton.addEventListener('click', cerrarFormularioCargo);
+    cargoForm.addEventListener('submit', guardarCargo);
+    formCargoType.addEventListener('change', renderizarMovimientosCargoDisponibles);
+    cargoMovementSearch.addEventListener('input', renderizarMovimientosCargoDisponibles);
+
+    cargoModal.addEventListener('click', (event) => {
+      if (event.target === cargoModal) {
+        cerrarFormularioCargo();
+      }
+    });
+
+    [
+      cargoSearch,
+      cargoSiteFilter,
+      cargoTypeFilter,
+      cargoStateFilter,
+      cargoDateFrom,
+      cargoDateTo
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarCargos);
+      control.addEventListener('change', renderizarCargos);
+    });
+
     backStockButton.addEventListener('click', mostrarDashboard);
     refreshStockButton.addEventListener('click', cargarStockActual);
     downloadStockButton.addEventListener('click', descargarStockCsv);
@@ -822,6 +904,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'CARGOS') {
+      abrirCargos();
+      return;
+    }
+
     if (modulo === 'STOCK_ACTUAL') {
       abrirStockActual();
       return;
@@ -873,8 +960,1342 @@
 
 
 
+
+  async function abrirCargos() {
+    dashboardView.hidden = true;
+    stockView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    cargosView.hidden = false;
+
+    await cargarCargos();
+  }
+
+  async function cargarCargos() {
+    cargosLoading.hidden = false;
+    cargosLoading.textContent = 'Cargando cargos…';
+    cargosTable.hidden = true;
+    cargosEmpty.hidden = true;
+    refreshCargosButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_cargos',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar los cargos.'
+        );
+      }
+
+      cargos =
+        Array.isArray(
+          respuesta.cargos
+        )
+          ? respuesta.cargos
+          : [];
+
+      puedeRegistrarCargos =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarCargos =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      puedeAprobarCargos =
+        Boolean(
+          respuesta.puedeAprobar
+        );
+
+      puedeAnularCargos =
+        Boolean(
+          respuesta.puedeAnular
+        );
+
+      puedeDescargarCargos =
+        Boolean(
+          respuesta.puedeDescargar
+        );
+
+      catalogosCargos =
+        respuesta.catalogos || {
+          tiposCargo: [],
+          estadosCargo: [],
+          sedes: [],
+          movimientos: []
+        };
+
+      newCargoButton.hidden =
+        !puedeRegistrarCargos;
+
+      actualizarCatalogosCargos();
+      renderizarCargos();
+      cargosLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      cargosLoading.hidden = false;
+      cargosLoading.textContent = error.message;
+      cargosTable.hidden = true;
+
+    } finally {
+      refreshCargosButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosCargos() {
+    llenarSelectConTodos(
+      cargoSiteFilter,
+      catalogosCargos.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectObjetosMovimiento(
+      cargoTypeFilter,
+      catalogosCargos.tiposCargo || [],
+      'Todos'
+    );
+
+    llenarSelectObjetosMovimiento(
+      cargoStateFilter,
+      catalogosCargos.estadosCargo || [],
+      'Todos'
+    );
+
+    llenarSelectObjetosMovimiento(
+      formCargoType,
+      catalogosCargos.tiposCargo || []
+    );
+  }
+
+  function renderizarCargos() {
+    const texto =
+      normalizarBusqueda(
+        cargoSearch.value
+      );
+
+    const sede =
+      String(
+        cargoSiteFilter.value || ''
+      ).toUpperCase();
+
+    const tipo =
+      String(
+        cargoTypeFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        cargoStateFilter.value || ''
+      ).toUpperCase();
+
+    const desde =
+      cargoDateFrom.value;
+
+    const hasta =
+      cargoDateTo.value;
+
+    const filtrados =
+      cargos.filter(cargo => {
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            cargo.idCargo,
+            cargo.numeroCargo,
+            cargo.tipoCargo,
+            cargo.idCuadrilla,
+            cargo.idSupervisor,
+            cargo.dniResponsable,
+            cargo.responsableRecibe,
+            cargo.responsableEntrega,
+            cargo.observaciones
+          ].join(' ')).includes(
+            texto
+          );
+
+        const coincideSede =
+          !sede ||
+          cargo.sede === sede;
+
+        const coincideTipo =
+          !tipo ||
+          cargo.tipoCargo === tipo;
+
+        const coincideEstado =
+          !estado ||
+          cargo.estadoCargo === estado;
+
+        const fechaIso =
+          cargo.fechaCargoIso ||
+          convertirFechaMovimientoIso(
+            cargo.fechaCargo
+          );
+
+        const coincideDesde =
+          !desde ||
+          !fechaIso ||
+          fechaIso >= desde;
+
+        const coincideHasta =
+          !hasta ||
+          !fechaIso ||
+          fechaIso <= hasta;
+
+        return (
+          coincideTexto &&
+          coincideSede &&
+          coincideTipo &&
+          coincideEstado &&
+          coincideDesde &&
+          coincideHasta
+        );
+      });
+
+    cargosTableBody.innerHTML = '';
+
+    filtrados.forEach(cargo => {
+      cargosTableBody.appendChild(
+        crearFilaCargo(
+          cargo
+        )
+      );
+    });
+
+    cargoSummaryTotal.textContent =
+      String(
+        filtrados.length
+      );
+
+    cargoSummaryIssued.textContent =
+      String(
+        filtrados.filter(item =>
+          item.estadoCargo ===
+          'EMITIDO'
+        ).length
+      );
+
+    cargoSummaryAccepted.textContent =
+      String(
+        filtrados.filter(item =>
+          item.estadoCargo ===
+          'ACEPTADO'
+        ).length
+      );
+
+    cargoSummaryClosed.textContent =
+      String(
+        filtrados.filter(item =>
+          item.estadoCargo ===
+          'CERRADO'
+        ).length
+      );
+
+    cargosLoading.hidden = true;
+    cargosTable.hidden =
+      filtrados.length === 0;
+    cargosEmpty.hidden =
+      filtrados.length !== 0;
+  }
+
+  function crearFilaCargo(
+    cargo
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const celdaCargo =
+      document.createElement(
+        'td'
+      );
+
+    celdaCargo.className =
+      'cargo-main-cell';
+
+    celdaCargo.innerHTML =
+      `<strong>${escaparHtml(
+        cargo.fechaCargo ||
+        'Sin fecha'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        cargo.idCargo
+      )}</small>` +
+      `<span class="cargo-number">${escaparHtml(
+        cargo.numeroCargo
+      )}</span>`;
+
+    fila.appendChild(
+      celdaCargo
+    );
+
+    const celdaTipo =
+      document.createElement(
+        'td'
+      );
+
+    celdaTipo.className =
+      'cargo-detail-cell';
+
+    celdaTipo.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          cargo.tipoCargo
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        formatearTexto(
+          cargo.sede
+        )
+      )}</small>`;
+
+    fila.appendChild(
+      celdaTipo
+    );
+
+    const celdaResponsable =
+      document.createElement(
+        'td'
+      );
+
+    celdaResponsable.className =
+      'cargo-responsible-cell';
+
+    celdaResponsable.innerHTML =
+      `<strong>${escaparHtml(
+        cargo.responsableRecibe ||
+        'Sin responsable'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          formatearTexto(
+            cargo.cargoResponsable
+          ),
+          cargo.dniResponsable
+            ? `DNI ${cargo.dniResponsable}`
+            : '',
+          cargo.idCuadrilla,
+          cargo.idSupervisor
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      celdaResponsable
+    );
+
+    fila.appendChild(
+      crearCelda(
+        cargo.responsableEntrega ||
+        'Sin responsable'
+      )
+    );
+
+    fila.appendChild(
+      crearCelda(
+        String(
+          cargo.cantidadItems ||
+          (
+            Array.isArray(
+              cargo.items
+            )
+              ? cargo.items.length
+              : 0
+          )
+        )
+      )
+    );
+
+    const celdaEstado =
+      document.createElement(
+        'td'
+      );
+
+    const estado =
+      cargo.estadoCargo ||
+      'BORRADOR';
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    insignia.className =
+      'status-badge ' +
+      (
+        [
+          'ACEPTADO',
+          'CERRADO'
+        ].includes(
+          estado
+        )
+          ? 'status-active'
+          : estado === 'ANULADO'
+            ? 'status-inactive'
+            : ''
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        estado
+      );
+
+    celdaEstado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      celdaEstado
+    );
+
+    const celdaSustento =
+      document.createElement(
+        'td'
+      );
+
+    celdaSustento.className =
+      'cargo-support-links';
+
+    if (
+      /^https?:\/\//i.test(
+        cargo.evidenciaUrl || ''
+      )
+    ) {
+      celdaSustento.appendChild(
+        crearEnlaceCargo(
+          cargo.evidenciaUrl,
+          'Evidencia'
+        )
+      );
+    }
+
+    if (
+      /^https?:\/\//i.test(
+        cargo.firmaUrl || ''
+      )
+    ) {
+      celdaSustento.appendChild(
+        crearEnlaceCargo(
+          cargo.firmaUrl,
+          'Firma'
+        )
+      );
+    }
+
+    if (
+      !celdaSustento.children.length
+    ) {
+      celdaSustento.textContent =
+        'Sin enlaces';
+    }
+
+    fila.appendChild(
+      celdaSustento
+    );
+
+    const celdaAcciones =
+      document.createElement(
+        'td'
+      );
+
+    celdaAcciones.className =
+      'actions-cell';
+
+    if (
+      puedeEditarCargos &&
+      [
+        'BORRADOR',
+        'OBSERVADO'
+      ].includes(
+        estado
+      )
+    ) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarCargo(
+              cargo
+            )
+        )
+      );
+    }
+
+    if (
+      puedeEditarCargos &&
+      estado === 'BORRADOR'
+    ) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Emitir',
+          () =>
+            cambiarEstadoCargo(
+              cargo,
+              'EMITIDO'
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAprobarCargos &&
+      estado === 'EMITIDO'
+    ) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Aceptar',
+          () =>
+            cambiarEstadoCargo(
+              cargo,
+              'ACEPTADO'
+            )
+        )
+      );
+
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Observar',
+          () =>
+            cambiarEstadoCargo(
+              cargo,
+              'OBSERVADO',
+              true
+            )
+        )
+      );
+    }
+
+    if (
+      puedeEditarCargos &&
+      estado === 'OBSERVADO'
+    ) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'A borrador',
+          () =>
+            cambiarEstadoCargo(
+              cargo,
+              'BORRADOR'
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAprobarCargos &&
+      estado === 'ACEPTADO'
+    ) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Cerrar',
+          () =>
+            cambiarEstadoCargo(
+              cargo,
+              'CERRADO'
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAnularCargos &&
+      ![
+        'CERRADO',
+        'ANULADO'
+      ].includes(
+        estado
+      )
+    ) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Anular',
+          () =>
+            cambiarEstadoCargo(
+              cargo,
+              'ANULADO',
+              true
+            )
+        )
+      );
+    }
+
+    if (puedeDescargarCargos) {
+      celdaAcciones.appendChild(
+        crearBotonAccion(
+          'Imprimir',
+          () =>
+            imprimirCargo(
+              cargo
+            )
+        )
+      );
+    }
+
+    if (
+      !celdaAcciones.children.length
+    ) {
+      celdaAcciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      celdaAcciones
+    );
+
+    return fila;
+  }
+
+  function crearEnlaceCargo(
+    url,
+    texto
+  ) {
+    const enlace =
+      document.createElement(
+        'a'
+      );
+
+    enlace.href =
+      url;
+
+    enlace.target =
+      '_blank';
+
+    enlace.rel =
+      'noopener noreferrer';
+
+    enlace.textContent =
+      texto;
+
+    return enlace;
+  }
+
+  function abrirNuevoCargo() {
+    cargoForm.reset();
+    formCargoId.value = '';
+    cargoSeleccionado = null;
+    movimientosCargoSeleccionados =
+      new Set();
+
+    const hoy =
+      new Date();
+
+    formCargoDate.value =
+      new Date(
+        hoy.getTime() -
+        hoy.getTimezoneOffset() *
+        60000
+      )
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    actualizarCatalogosCargos();
+
+    if (
+      formCargoType.options.length
+    ) {
+      formCargoType.selectedIndex =
+        0;
+    }
+
+    cargoModalTitle.textContent =
+      'Nuevo cargo';
+
+    saveCargoButton.textContent =
+      'Guardar borrador';
+
+    cargoFormMessage.textContent =
+      '';
+
+    renderizarMovimientosCargoDisponibles();
+    actualizarResumenSeleccionCargo();
+
+    cargoModal.hidden = false;
+    formCargoType.focus();
+  }
+
+  function abrirEditarCargo(
+    cargo
+  ) {
+    cargoForm.reset();
+    cargoSeleccionado =
+      cargo;
+
+    formCargoId.value =
+      cargo.idCargo || '';
+
+    formCargoDate.value =
+      cargo.fechaCargoIso || '';
+
+    actualizarCatalogosCargos();
+
+    asegurarOpcionCargo(
+      formCargoType,
+      cargo.tipoCargo
+    );
+
+    formCargoType.value =
+      cargo.tipoCargo || '';
+
+    formCargoEvidence.value =
+      cargo.evidenciaUrl || '';
+
+    formCargoSignature.value =
+      cargo.firmaUrl || '';
+
+    formCargoNotes.value =
+      cargo.observaciones || '';
+
+    movimientosCargoSeleccionados =
+      new Set(
+        (
+          Array.isArray(
+            cargo.items
+          )
+            ? cargo.items
+            : []
+        ).map(item =>
+          item.idMovimiento
+        )
+      );
+
+    cargoModalTitle.textContent =
+      `Editar ${cargo.numeroCargo}`;
+
+    saveCargoButton.textContent =
+      'Guardar cambios';
+
+    cargoFormMessage.textContent =
+      '';
+
+    renderizarMovimientosCargoDisponibles();
+    actualizarResumenSeleccionCargo();
+
+    cargoModal.hidden = false;
+    formCargoDate.focus();
+  }
+
+  function asegurarOpcionCargo(
+    select,
+    valor
+  ) {
+    if (
+      !valor ||
+      Array.from(
+        select.options
+      ).some(option =>
+        option.value === valor
+      )
+    ) {
+      return;
+    }
+
+    const option =
+      document.createElement(
+        'option'
+      );
+
+    option.value =
+      valor;
+
+    option.textContent =
+      formatearTexto(
+        valor
+      );
+
+    select.appendChild(
+      option
+    );
+  }
+
+  function renderizarMovimientosCargoDisponibles() {
+    const tipoCargo =
+      formCargoType.value;
+
+    const texto =
+      normalizarBusqueda(
+        cargoMovementSearch.value
+      );
+
+    const numeroCargoActual =
+      cargoSeleccionado
+        ? cargoSeleccionado.numeroCargo
+        : '';
+
+    const movimientos =
+      (
+        catalogosCargos.movimientos || []
+      ).filter(movimiento => {
+        const disponible =
+          !movimiento.numeroCargo ||
+          movimiento.numeroCargo ===
+            numeroCargoActual;
+
+        const compatible =
+          esMovimientoCompatibleCargoFrontend(
+            movimiento,
+            tipoCargo
+          );
+
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            movimiento.idMovimiento,
+            movimiento.tipoMovimiento,
+            movimiento.tipoHerramienta,
+            movimiento.codigoInterno,
+            movimiento.destinoResponsable,
+            movimiento.responsableEntrega
+          ].join(' ')).includes(
+            texto
+          );
+
+        return (
+          disponible &&
+          compatible &&
+          coincideTexto
+        );
+      });
+
+    cargoMovementList.innerHTML = '';
+
+    const seleccionBase =
+      obtenerMovimientoBaseCargoSeleccionado();
+
+    movimientos.forEach(movimiento => {
+      const label =
+        document.createElement(
+          'label'
+        );
+
+      label.className =
+        'cargo-movement-option';
+
+      const checkbox =
+        document.createElement(
+          'input'
+        );
+
+      checkbox.type =
+        'checkbox';
+
+      checkbox.value =
+        movimiento.idMovimiento;
+
+      checkbox.checked =
+        movimientosCargoSeleccionados.has(
+          movimiento.idMovimiento
+        );
+
+      const compatibleConBase =
+        !seleccionBase ||
+        claveDestinoCargoFrontend(
+          movimiento
+        ) ===
+          claveDestinoCargoFrontend(
+            seleccionBase
+          );
+
+      if (!compatibleConBase) {
+        label.classList.add(
+          'is-incompatible'
+        );
+
+        checkbox.disabled =
+          !checkbox.checked;
+      }
+
+      checkbox.addEventListener(
+        'change',
+        () => {
+          if (checkbox.checked) {
+            movimientosCargoSeleccionados.add(
+              movimiento.idMovimiento
+            );
+          } else {
+            movimientosCargoSeleccionados.delete(
+              movimiento.idMovimiento
+            );
+          }
+
+          renderizarMovimientosCargoDisponibles();
+          actualizarResumenSeleccionCargo();
+        }
+      );
+
+      const contenido =
+        document.createElement(
+          'div'
+        );
+
+      contenido.className =
+        'cargo-movement-main';
+
+      contenido.innerHTML =
+        `<strong>${escaparHtml(
+          movimiento.tipoHerramienta ||
+          'Sin artículo'
+        )}</strong>` +
+        `<small>${escaparHtml(
+          [
+            movimiento.idMovimiento,
+            formatearTexto(
+              movimiento.tipoMovimiento
+            ),
+            movimiento.codigoInterno,
+            movimiento.destinoResponsable,
+            formatearTexto(
+              movimiento.destinoSede
+            )
+          ].filter(Boolean).join(' · ')
+        )}</small>`;
+
+      const cantidad =
+        document.createElement(
+          'span'
+        );
+
+      cantidad.className =
+        'cargo-movement-quantity';
+
+      cantidad.textContent =
+        `${formatearCantidadMovimiento(
+          movimiento.cantidad
+        )} ${formatearTexto(
+          movimiento.unidadMedida
+        )}`;
+
+      label.appendChild(
+        checkbox
+      );
+
+      label.appendChild(
+        contenido
+      );
+
+      label.appendChild(
+        cantidad
+      );
+
+      cargoMovementList.appendChild(
+        label
+      );
+    });
+
+    cargoMovementEmpty.hidden =
+      movimientos.length !== 0;
+  }
+
+  function esMovimientoCompatibleCargoFrontend(
+    movimiento,
+    tipoCargo
+  ) {
+    const tipoMovimiento =
+      movimiento.tipoMovimiento;
+
+    const esEpp =
+      movimiento.categoria ===
+      'EPP';
+
+    const reglas = {
+      ASIGNACION_CUADRILLA:
+        tipoMovimiento ===
+          'ASIGNACION_CUADRILLA' &&
+        !esEpp,
+
+      ASIGNACION_TECNICO:
+        tipoMovimiento ===
+          'ASIGNACION_TECNICO' &&
+        !esEpp,
+
+      ASIGNACION_SUPERVISOR:
+        tipoMovimiento ===
+          'ASIGNACION_SUPERVISOR' &&
+        !esEpp,
+
+      DEVOLUCION_ALMACEN:
+        tipoMovimiento ===
+          'DEVOLUCION_ALMACEN',
+
+      TRANSFERENCIA:
+        [
+          'TRANSFERENCIA_CUADRILLA',
+          'TRANSFERENCIA_SEDE'
+        ].includes(
+          tipoMovimiento
+        ),
+
+      CAMBIO_HERRAMIENTA:
+        tipoMovimiento ===
+          'CAMBIO_HERRAMIENTA',
+
+      ENTREGA_EPP:
+        esEpp &&
+        [
+          'ASIGNACION_CUADRILLA',
+          'ASIGNACION_TECNICO',
+          'ASIGNACION_SUPERVISOR'
+        ].includes(
+          tipoMovimiento
+        )
+    };
+
+    return Boolean(
+      reglas[tipoCargo]
+    );
+  }
+
+  function obtenerMovimientoBaseCargoSeleccionado() {
+    const movimientos =
+      catalogosCargos.movimientos || [];
+
+    for (
+      const id of
+      movimientosCargoSeleccionados
+    ) {
+      const movimiento =
+        movimientos.find(item =>
+          item.idMovimiento === id
+        );
+
+      if (movimiento) {
+        return movimiento;
+      }
+    }
+
+    return null;
+  }
+
+  function claveDestinoCargoFrontend(
+    movimiento
+  ) {
+    return [
+      movimiento.destinoTipo,
+      movimiento.destinoSede,
+      movimiento.destinoCuadrilla,
+      movimiento.dniResponsableDestino,
+      normalizarBusqueda(
+        movimiento.destinoResponsable
+      )
+    ].join('|');
+  }
+
+  function actualizarResumenSeleccionCargo() {
+    const base =
+      obtenerMovimientoBaseCargoSeleccionado();
+
+    cargoSelectedCount.textContent =
+      String(
+        movimientosCargoSeleccionados.size
+      );
+
+    cargoRecipientName.textContent =
+      base
+        ? base.destinoResponsable ||
+          'Sin responsable'
+        : 'Sin seleccionar';
+
+    cargoRecipientDni.textContent =
+      base
+        ? base.dniResponsableDestino ||
+          '—'
+        : '—';
+
+    cargoRecipientSite.textContent =
+      base
+        ? formatearTexto(
+            base.destinoSede
+          )
+        : '—';
+
+    cargoDeliverName.textContent =
+      base
+        ? base.responsableEntrega ||
+          '—'
+        : '—';
+  }
+
+  function cerrarFormularioCargo() {
+    cargoModal.hidden = true;
+    cargoFormMessage.textContent = '';
+    cargoSeleccionado = null;
+    movimientosCargoSeleccionados =
+      new Set();
+  }
+
+  async function guardarCargo(
+    event
+  ) {
+    event.preventDefault();
+    cargoFormMessage.textContent = '';
+
+    const payload = {
+      accion:
+        'guardar_cargo',
+      token:
+        auth.token,
+      idCargo:
+        formCargoId.value.trim(),
+      fechaCargo:
+        formCargoDate.value,
+      tipoCargo:
+        formCargoType.value,
+      evidenciaUrl:
+        formCargoEvidence.value.trim(),
+      firmaUrl:
+        formCargoSignature.value.trim(),
+      observaciones:
+        formCargoNotes.value.trim(),
+      movimientos:
+        Array.from(
+          movimientosCargoSeleccionados
+        )
+    };
+
+    if (
+      !payload.fechaCargo ||
+      !payload.tipoCargo ||
+      !payload.movimientos.length
+    ) {
+      cargoFormMessage.textContent =
+        'Completa la fecha, el tipo y selecciona por lo menos un movimiento.';
+      return;
+    }
+
+    saveCargoButton.disabled = true;
+    saveCargoButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar el cargo.'
+        );
+      }
+
+      cerrarFormularioCargo();
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarCargos();
+
+    } catch (error) {
+      cargoFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveCargoButton.disabled =
+        false;
+
+      saveCargoButton.textContent =
+        formCargoId.value
+          ? 'Guardar cambios'
+          : 'Guardar borrador';
+    }
+  }
+
+  async function cambiarEstadoCargo(
+    cargo,
+    estado,
+    requiereComentario = false
+  ) {
+    let comentario = '';
+
+    if (requiereComentario) {
+      comentario =
+        window.prompt(
+          estado === 'OBSERVADO'
+            ? 'Indica el motivo de la observación:'
+            : 'Indica el motivo de la anulación:'
+        );
+
+      if (
+        comentario === null
+      ) {
+        return;
+      }
+
+      comentario =
+        comentario.trim();
+
+      if (!comentario) {
+        window.alert(
+          'Debes ingresar un motivo.'
+        );
+
+        return;
+      }
+
+    } else {
+      const confirmado =
+        window.confirm(
+          `¿Deseas cambiar el cargo ${cargo.numeroCargo} a ${formatearTexto(
+            estado
+          )}?`
+        );
+
+      if (!confirmado) {
+        return;
+      }
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_cargo',
+          token:
+            auth.token,
+          idCargo:
+            cargo.idCargo,
+          estado:
+            estado,
+          comentario:
+            comentario
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado del cargo.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarCargos();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
+  function imprimirCargo(
+    cargo
+  ) {
+    const items =
+      Array.isArray(
+        cargo.items
+      )
+        ? cargo.items
+        : [];
+
+    const filas =
+      items.map(
+        (
+          item,
+          indice
+        ) =>
+          `<tr>` +
+          `<td>${indice + 1}</td>` +
+          `<td>${escaparHtml(item.idMovimiento || '')}</td>` +
+          `<td>${escaparHtml(item.tipoHerramienta || '')}</td>` +
+          `<td>${escaparHtml(item.codigoInterno || item.idHerramienta || '')}</td>` +
+          `<td>${escaparHtml(formatearCantidadMovimiento(item.cantidad))}</td>` +
+          `<td>${escaparHtml(formatearTexto(item.unidadMedida))}</td>` +
+          `<td>${escaparHtml(formatearTexto(item.motivo))}</td>` +
+          `</tr>`
+      ).join('');
+
+    const ventana =
+      window.open(
+        '',
+        '_blank',
+        'width=1000,height=760'
+      );
+
+    if (!ventana) {
+      window.alert(
+        'El navegador bloqueó la ventana de impresión.'
+      );
+
+      return;
+    }
+
+    ventana.document.write(
+      `<!doctype html>` +
+      `<html lang="es">` +
+      `<head>` +
+      `<meta charset="utf-8">` +
+      `<title>${escaparHtml(cargo.numeroCargo)}</title>` +
+      `<style>` +
+      `body{font-family:Arial,sans-serif;color:#111;margin:28px}` +
+      `h1{font-size:22px;margin:0}` +
+      `.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}` +
+      `.meta div{border:1px solid #ccc;padding:9px}` +
+      `.meta span{display:block;font-size:11px;color:#555}` +
+      `.meta strong{display:block;margin-top:4px;font-size:13px}` +
+      `table{width:100%;border-collapse:collapse;margin-top:16px}` +
+      `th,td{border:1px solid #bbb;padding:7px;font-size:11px;text-align:left}` +
+      `th{background:#eee}` +
+      `.signatures{display:grid;grid-template-columns:1fr 1fr;gap:70px;margin-top:70px}` +
+      `.signature{border-top:1px solid #111;padding-top:8px;text-align:center;font-size:12px}` +
+      `.notes{margin-top:18px;border:1px solid #ccc;padding:10px;font-size:12px}` +
+      `@media print{button{display:none}body{margin:12mm}}` +
+      `</style>` +
+      `</head>` +
+      `<body>` +
+      `<h1>CARGO DE HERRAMIENTAS Y EPP</h1>` +
+      `<p>${escaparHtml(cargo.numeroCargo)} · ${escaparHtml(formatearTexto(cargo.estadoCargo))}</p>` +
+      `<div class="meta">` +
+      `<div><span>Fecha</span><strong>${escaparHtml(cargo.fechaCargo || '')}</strong></div>` +
+      `<div><span>Tipo</span><strong>${escaparHtml(formatearTexto(cargo.tipoCargo))}</strong></div>` +
+      `<div><span>Sede</span><strong>${escaparHtml(formatearTexto(cargo.sede))}</strong></div>` +
+      `<div><span>Responsable que recibe</span><strong>${escaparHtml(cargo.responsableRecibe || '')}</strong></div>` +
+      `<div><span>DNI</span><strong>${escaparHtml(cargo.dniResponsable || '')}</strong></div>` +
+      `<div><span>Cargo / ubicación</span><strong>${escaparHtml(formatearTexto(cargo.cargoResponsable))}</strong></div>` +
+      `<div><span>Responsable que entrega</span><strong>${escaparHtml(cargo.responsableEntrega || '')}</strong></div>` +
+      `<div><span>Cuadrilla</span><strong>${escaparHtml(cargo.idCuadrilla || '—')}</strong></div>` +
+      `<div><span>Cantidad de ítems</span><strong>${escaparHtml(String(cargo.cantidadItems || items.length))}</strong></div>` +
+      `</div>` +
+      `<table>` +
+      `<thead><tr><th>N.°</th><th>Movimiento</th><th>Artículo</th><th>Código</th><th>Cantidad</th><th>Unidad</th><th>Motivo</th></tr></thead>` +
+      `<tbody>${filas || '<tr><td colspan="7">Sin detalle vinculado</td></tr>'}</tbody>` +
+      `</table>` +
+      `<div class="notes"><strong>Observaciones:</strong><br>${escaparHtml(cargo.observaciones || 'Sin observaciones')}</div>` +
+      `<div class="signatures">` +
+      `<div class="signature">${escaparHtml(cargo.responsableEntrega || 'Responsable que entrega')}</div>` +
+      `<div class="signature">${escaparHtml(cargo.responsableRecibe || 'Responsable que recibe')}<br>DNI: ${escaparHtml(cargo.dniResponsable || '')}</div>` +
+      `</div>` +
+      `<p style="margin-top:28px;font-size:10px;color:#666">Generado desde VISUAL HERRAMIENTAS.</p>` +
+      `<button onclick="window.print()">Imprimir</button>` +
+      `</body></html>`
+    );
+
+    ventana.document.close();
+    ventana.focus();
+  }
+
   async function abrirStockActual() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
@@ -1566,6 +2987,7 @@
 
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     stockView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
@@ -3100,6 +4522,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     catalogView.hidden = true;
@@ -4095,6 +5518,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -4927,6 +6351,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -5592,6 +7017,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -6410,6 +7836,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -7079,6 +8506,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -7091,6 +8519,7 @@
   }
 
   function mostrarDashboard() {
+    cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -7614,6 +9043,9 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    cargos = [];
+    cargoSeleccionado = null;
+    movimientosCargoSeleccionados = new Set();
     stockActual = [];
     stockFiltradoActual = [];
     movimientos = [];

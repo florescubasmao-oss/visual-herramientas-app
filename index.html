@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.10.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.11.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -271,6 +271,148 @@
 
 
 
+
+
+
+    <main id="cargosView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backCargosButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Control documental</p>
+            <h2>Cargos</h2>
+            <p class="subtitle">
+              Entregas y devoluciones sustentadas con movimientos, responsables, evidencia y aceptación.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="newCargoButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nuevo cargo
+          </button>
+
+          <button
+            id="refreshCargosButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="cargo-summary-grid" aria-label="Resumen de cargos">
+        <article class="cargo-summary-card">
+          <span>Total visible</span>
+          <strong id="cargoSummaryTotal">0</strong>
+        </article>
+
+        <article class="cargo-summary-card">
+          <span>Emitidos</span>
+          <strong id="cargoSummaryIssued">0</strong>
+        </article>
+
+        <article class="cargo-summary-card">
+          <span>Aceptados</span>
+          <strong id="cargoSummaryAccepted">0</strong>
+        </article>
+
+        <article class="cargo-summary-card">
+          <span>Cerrados</span>
+          <strong id="cargoSummaryClosed">0</strong>
+        </article>
+      </section>
+
+      <section class="filters-card" aria-label="Filtros de cargos">
+        <div class="cargo-filters-grid">
+          <div class="field-group">
+            <label for="cargoSearch">Buscar</label>
+            <input
+              id="cargoSearch"
+              type="search"
+              placeholder="Número, responsable, DNI o cuadrilla"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="cargoSiteFilter">Sede</label>
+            <select id="cargoSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="cargoTypeFilter">Tipo</label>
+            <select id="cargoTypeFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="cargoStateFilter">Estado</label>
+            <select id="cargoStateFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="cargoDateFrom">Desde</label>
+            <input id="cargoDateFrom" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="cargoDateTo">Hasta</label>
+            <input id="cargoDateTo" type="date">
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="cargosLoading" class="loading-state">
+          Selecciona Actualizar para cargar los cargos.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="cargosTable"
+            class="data-table cargos-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Cargo</th>
+                <th>Tipo / sede</th>
+                <th>Responsable</th>
+                <th>Entrega</th>
+                <th>Ítems</th>
+                <th>Estado</th>
+                <th>Sustento</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="cargosTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="cargosEmpty" class="empty-state" hidden>
+          No se encontraron cargos con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="stockView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -1237,6 +1379,145 @@
 
 
 
+
+
+  <div id="cargoModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card modal-card-extra-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cargoModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Control documental</p>
+          <h2 id="cargoModalTitle">Nuevo cargo</h2>
+        </div>
+
+        <button
+          id="closeCargoModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="cargoForm" class="user-form">
+        <input id="formCargoId" type="hidden">
+
+        <div class="cargo-form-grid">
+          <div class="field-group">
+            <label for="formCargoDate">Fecha del cargo</label>
+            <input id="formCargoDate" type="date" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formCargoType">Tipo de cargo</label>
+            <select id="formCargoType" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formCargoEvidence">URL de evidencia</label>
+            <input
+              id="formCargoEvidence"
+              type="url"
+              placeholder="https://..."
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formCargoSignature">URL de firma</label>
+            <input
+              id="formCargoSignature"
+              type="url"
+              placeholder="https://..."
+            >
+          </div>
+        </div>
+
+        <section class="cargo-selection-panel">
+          <div class="cargo-selection-header">
+            <div>
+              <h3>Movimientos confirmados</h3>
+              <p>
+                Selecciona movimientos del mismo destinatario y responsable de entrega.
+              </p>
+            </div>
+
+            <div class="field-group cargo-search-field">
+              <label for="cargoMovementSearch">Buscar movimiento</label>
+              <input
+                id="cargoMovementSearch"
+                type="search"
+                placeholder="ID, artículo, código o responsable"
+              >
+            </div>
+          </div>
+
+          <div id="cargoMovementList" class="cargo-movement-list"></div>
+
+          <p id="cargoMovementEmpty" class="empty-state" hidden>
+            No hay movimientos disponibles para este tipo de cargo.
+          </p>
+        </section>
+
+        <section class="cargo-recipient-summary">
+          <div>
+            <span>Destinatario</span>
+            <strong id="cargoRecipientName">Sin seleccionar</strong>
+          </div>
+
+          <div>
+            <span>DNI</span>
+            <strong id="cargoRecipientDni">—</strong>
+          </div>
+
+          <div>
+            <span>Sede</span>
+            <strong id="cargoRecipientSite">—</strong>
+          </div>
+
+          <div>
+            <span>Responsable que entrega</span>
+            <strong id="cargoDeliverName">—</strong>
+          </div>
+
+          <div>
+            <span>Ítems seleccionados</span>
+            <strong id="cargoSelectedCount">0</strong>
+          </div>
+        </section>
+
+        <div class="field-group">
+          <label for="formCargoNotes">Observaciones</label>
+          <textarea id="formCargoNotes" rows="3"></textarea>
+        </div>
+
+        <p id="cargoFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelCargoFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveCargoButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Guardar borrador
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="movementModal" class="modal-backdrop" hidden>
     <section
       class="modal-card modal-card-extra-wide"
@@ -2121,7 +2402,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.10.0"></script>
-  <script src="js/app.js?v=0.10.0"></script>
+  <script src="js/config.js?v=0.11.0"></script>
+  <script src="js/app.js?v=0.11.0"></script>
 </body>
 </html>
