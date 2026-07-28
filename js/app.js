@@ -14655,7 +14655,7 @@
     const estado = String(cuadrilla.estado || '').toUpperCase();
     const insignia = document.createElement('span');
     insignia.className = 'status-badge ' +
-      (estado === 'ACTIVO' ? 'status-active' : 'status-inactive');
+      (estado === 'ACTIVA' ? 'status-active' : 'status-inactive');
     insignia.textContent = formatearTexto(estado || 'Sin estado');
     celdaEstado.appendChild(insignia);
     fila.appendChild(celdaEstado);
@@ -14669,9 +14669,15 @@
         () => abrirEditarCuadrilla(cuadrilla)
       ));
 
-      const nuevoEstado = estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+      const nuevoEstado =
+        estado === 'ACTIVA'
+          ? 'INACTIVA'
+          : 'ACTIVA';
+
       celdaAcciones.appendChild(crearBotonAccion(
-        nuevoEstado === 'ACTIVO' ? 'Activar' : 'Inactivar',
+        nuevoEstado === 'ACTIVA'
+          ? 'Activar'
+          : 'Inactivar',
         () => cambiarEstadoCuadrilla(cuadrilla, nuevoEstado)
       ));
     } else {
@@ -14700,7 +14706,7 @@
   function abrirNuevaCuadrilla() {
     crewForm.reset();
     formCrewId.value = '';
-    formCrewStatus.value = 'ACTIVO';
+    formCrewStatus.value = 'ACTIVA';
     crewModalTitle.textContent = 'Nueva cuadrilla';
     saveCrewButton.textContent = 'Registrar cuadrilla';
     crewFormMessage.textContent = '';
@@ -14727,7 +14733,7 @@
     formCrewTech2.value = cuadrilla.tecnico2 || '';
     formCrewDni2.value = cuadrilla.dniTecnico2 || '';
     formCrewRole2.value = String(cuadrilla.cargoTecnico2 || '').toUpperCase();
-    formCrewStatus.value = String(cuadrilla.estado || 'ACTIVO').toUpperCase();
+    formCrewStatus.value = String(cuadrilla.estado || 'ACTIVA').toUpperCase();
     formCrewNotes.value = cuadrilla.observaciones || '';
     crewModalTitle.textContent = 'Editar cuadrilla';
     saveCrewButton.textContent = 'Guardar cambios';
@@ -14823,7 +14829,7 @@
       dniTecnico2: formCrewDni2.value.trim(),
       cargoTecnico2: formCrewRole2.value,
       idSupervisor: formCrewSupervisor.value,
-      estado: formCrewStatus.value || 'ACTIVO',
+      estado: formCrewStatus.value || 'ACTIVA',
       observaciones: formCrewNotes.value.trim()
     };
 
@@ -14941,7 +14947,7 @@
       estado:
         String(
           cuadrilla.estado ||
-          'ACTIVO'
+          'ACTIVA'
         ).toUpperCase()
     };
 
@@ -15058,7 +15064,7 @@
   }
 
   async function cambiarEstadoCuadrilla(cuadrilla, estado) {
-    const accion = estado === 'ACTIVO' ? 'activar' : 'inactivar';
+    const accion = estado === 'ACTIVA' ? 'activar' : 'inactivar';
     const confirmado = window.confirm(
       `¿Deseas ${accion} la cuadrilla ${cuadrilla.codigoCuadrilla}?`
     );
