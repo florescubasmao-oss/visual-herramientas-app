@@ -2452,3 +2452,127 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.initial-load-notice {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 16px;
+  padding: 15px 17px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface-soft);
+}
+
+.initial-load-notice strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.initial-load-notice span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.initial-load-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.initial-load-summary-card {
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.initial-load-summary-card span,
+.initial-load-summary-card strong {
+  display: block;
+}
+
+.initial-load-summary-card span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.initial-load-summary-card strong {
+  margin-top: 6px;
+  font-size: 1.5rem;
+}
+
+.initial-load-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, minmax(145px, 1fr));
+  gap: 14px;
+}
+
+.initial-load-table {
+  min-width: 1440px;
+}
+
+.initial-load-main-cell strong,
+.initial-load-main-cell small,
+.initial-load-detail-cell strong,
+.initial-load-detail-cell small {
+  display: block;
+}
+
+.initial-load-main-cell small,
+.initial-load-detail-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.initial-load-row-number {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: var(--surface-soft);
+  color: var(--primary);
+  font-family: Consolas, monospace;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.initial-load-validation-ok {
+  color: var(--success);
+  font-weight: 800;
+}
+
+.initial-load-validation-error {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.initial-load-validation-loaded {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.initial-load-message {
+  max-width: 360px;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+@media (max-width: 1050px) {
+  .initial-load-summary-grid,
+  .initial-load-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .initial-load-summary-grid,
+  .initial-load-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}

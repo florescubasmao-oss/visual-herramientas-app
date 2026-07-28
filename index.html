@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.17.2">
+  <link rel="stylesheet" href="css/styles.css?v=0.18.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -166,8 +166,8 @@
           </button>
 
           <button class="module-card" type="button" data-module="HERRAMIENTAS">
-            <span class="module-icon">⌁</span>
-            <span><strong>Herramientas</strong><small>Registro individual de equipos y herramientas</small></span>
+            <span class="module-icon">⇧</span>
+            <span><strong>Carga inicial</strong><small>Importación por cantidad desde la hoja de control</small></span>
           </button>
 
           <button class="module-card" type="button" data-module="CATALOGO">
@@ -591,7 +591,7 @@
         </article>
 
         <article class="report-kpi-card">
-          <span>Herramientas unitarias</span>
+          <span>Cantidad total en stock</span>
           <strong id="reportKpiUnitary">0</strong>
         </article>
 
@@ -1461,7 +1461,7 @@
         </article>
 
         <article class="stock-summary-card">
-          <span>Herramientas unitarias</span>
+          <span>Cantidad total</span>
           <strong id="stockSummaryUnitary">0</strong>
         </article>
 
@@ -1740,10 +1740,10 @@
           </button>
 
           <div>
-            <p class="section-label">Operación</p>
-            <h2>Registro de herramientas</h2>
+            <p class="section-label">Implementación inicial</p>
+            <h2>Carga inicial de stock</h2>
             <p class="subtitle">
-              Herramientas unitarias, códigos, series y datos de compra.
+              Valida y procesa las herramientas existentes por cantidad, ubicación y responsable desde CARGA_INICIAL_STOCK.
             </p>
           </div>
         </div>
@@ -1755,7 +1755,7 @@
             type="button"
             hidden
           >
-            + Nueva herramienta
+            Procesar filas válidas
           </button>
 
           <button
@@ -1768,47 +1768,72 @@
         </div>
       </section>
 
-      <section
-        class="filters-card"
-        aria-label="Filtros de herramientas"
-      >
-        <div class="tool-filters-grid">
+      <section class="initial-load-notice">
+        <strong>No se registran alicates, martillos, testers ni EPP uno por uno.</strong>
+        <span>
+          Cada fila representa una cantidad actualmente ubicada en un almacén, cuadrilla, técnico o supervisor.
+          Las filas cargadas generan automáticamente un movimiento CARGA_INICIAL y actualizan Stock Actual.
+        </span>
+      </section>
+
+      <section class="initial-load-summary-grid">
+        <article class="initial-load-summary-card">
+          <span>Filas con información</span>
+          <strong id="initialLoadSummaryTotal">0</strong>
+        </article>
+
+        <article class="initial-load-summary-card">
+          <span>Válidas pendientes</span>
+          <strong id="initialLoadSummaryValid">0</strong>
+        </article>
+
+        <article class="initial-load-summary-card">
+          <span>Con error</span>
+          <strong id="initialLoadSummaryErrors">0</strong>
+        </article>
+
+        <article class="initial-load-summary-card">
+          <span>Cargadas</span>
+          <strong id="initialLoadSummaryLoaded">0</strong>
+        </article>
+      </section>
+
+      <section class="filters-card">
+        <div class="initial-load-filters-grid">
           <div class="field-group">
             <label for="toolSearch">Buscar</label>
             <input
               id="toolSearch"
               type="search"
-              placeholder="Código, tipo, marca, modelo o serie"
+              placeholder="Fila, herramienta, cuadrilla, responsable o mensaje"
             >
           </div>
 
           <div class="field-group">
-            <label for="toolCategoryFilter">Categoría</label>
+            <label for="toolCategoryFilter">Sede</label>
             <select id="toolCategoryFilter">
               <option value="">Todas</option>
             </select>
           </div>
 
           <div class="field-group">
-            <label for="toolTypeFilter">Tipo</label>
+            <label for="toolTypeFilter">Ubicación</label>
             <select id="toolTypeFilter">
-              <option value="">Todos</option>
-            </select>
-          </div>
-
-          <div class="field-group">
-            <label for="toolConditionFilter">Condición</label>
-            <select id="toolConditionFilter">
               <option value="">Todas</option>
             </select>
           </div>
 
           <div class="field-group">
-            <label for="toolSeriesFilter">Serie</label>
-            <select id="toolSeriesFilter">
+            <label for="toolConditionFilter">Estado de carga</label>
+            <select id="toolConditionFilter">
               <option value="">Todos</option>
-              <option value="CON_SERIE">Con serie</option>
-              <option value="SIN_SERIE">Sin serie</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="toolSeriesFilter">Validación</label>
+            <select id="toolSeriesFilter">
+              <option value="">Todas</option>
             </select>
           </div>
         </div>
@@ -1819,24 +1844,25 @@
           id="toolsLoading"
           class="loading-state"
         >
-          Selecciona Actualizar para cargar las herramientas.
+          Selecciona Actualizar para validar CARGA_INICIAL_STOCK.
         </div>
 
         <div class="table-scroll">
           <table
             id="toolsTable"
-            class="data-table tools-table"
+            class="data-table initial-load-table"
             hidden
           >
             <thead>
               <tr>
+                <th>Fila / estado</th>
+                <th>Sede / ubicación</th>
+                <th>Cuadrilla / responsable</th>
                 <th>Herramienta</th>
-                <th>Marca / modelo</th>
-                <th>Serie</th>
-                <th>Condición</th>
-                <th>Compra</th>
-                <th>Uso</th>
-                <th>Acciones</th>
+                <th>Cantidad</th>
+                <th>Marca / condición</th>
+                <th>Costo / proveedor</th>
+                <th>Validación / movimiento</th>
               </tr>
             </thead>
 
@@ -1849,7 +1875,7 @@
           class="empty-state"
           hidden
         >
-          No se encontraron herramientas con los filtros aplicados.
+          No existen filas con información o los filtros no encontraron resultados.
         </p>
       </section>
     </main>
@@ -3883,7 +3909,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.17.2"></script>
-  <script src="js/app.js?v=0.17.2"></script>
+  <script src="js/config.js?v=0.18.0"></script>
+  <script src="js/app.js?v=0.18.0"></script>
 </body>
 </html>
