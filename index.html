@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.13.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.14.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -277,6 +277,157 @@
 
 
 
+
+
+
+    <main id="bajasView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backBajasButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Ciclo de vida</p>
+            <h2>Bajas</h2>
+            <p class="subtitle">
+              Solicitud, aprobación y ejecución documentada de bajas de herramientas unitarias.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="downloadBajasButton"
+            class="secondary-button"
+            type="button"
+            hidden
+          >
+            Descargar CSV
+          </button>
+
+          <button
+            id="newBajaButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nueva baja
+          </button>
+
+          <button
+            id="refreshBajasButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="baja-summary-grid">
+        <article class="baja-summary-card">
+          <span>Total visible</span>
+          <strong id="bajaSummaryTotal">0</strong>
+        </article>
+
+        <article class="baja-summary-card">
+          <span>Solicitadas</span>
+          <strong id="bajaSummaryRequested">0</strong>
+        </article>
+
+        <article class="baja-summary-card">
+          <span>Aprobadas</span>
+          <strong id="bajaSummaryApproved">0</strong>
+        </article>
+
+        <article class="baja-summary-card">
+          <span>Ejecutadas</span>
+          <strong id="bajaSummaryExecuted">0</strong>
+        </article>
+      </section>
+
+      <section class="filters-card">
+        <div class="baja-filters-grid">
+          <div class="field-group">
+            <label for="bajaSearch">Buscar</label>
+            <input
+              id="bajaSearch"
+              type="search"
+              placeholder="ID, herramienta, código, serie o responsable"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="bajaSiteFilter">Sede</label>
+            <select id="bajaSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="bajaReasonFilter">Motivo</label>
+            <select id="bajaReasonFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="bajaStateFilter">Estado</label>
+            <select id="bajaStateFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="bajaDateFrom">Desde</label>
+            <input id="bajaDateFrom" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="bajaDateTo">Hasta</label>
+            <input id="bajaDateTo" type="date">
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="bajasLoading" class="loading-state">
+          Selecciona Actualizar para cargar las bajas.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="bajasTable"
+            class="data-table bajas-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Solicitud</th>
+                <th>Herramienta</th>
+                <th>Motivo</th>
+                <th>Ubicación / responsable</th>
+                <th>Valor</th>
+                <th>Estado</th>
+                <th>Sustento</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="bajasTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="bajasEmpty" class="empty-state" hidden>
+          No se encontraron solicitudes de baja con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="maintenanceView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -1685,6 +1836,121 @@
 
 
 
+
+
+  <div id="bajaModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card modal-card-extra-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bajaModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Ciclo de vida</p>
+          <h2 id="bajaModalTitle">Nueva solicitud de baja</h2>
+        </div>
+
+        <button
+          id="closeBajaModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="bajaForm" class="user-form">
+        <input id="formBajaId" type="hidden">
+
+        <div class="form-grid form-grid-3">
+          <div class="field-group field-span-2">
+            <label for="formBajaTool">Herramienta</label>
+            <select id="formBajaTool" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formBajaDate">Fecha de solicitud</label>
+            <input id="formBajaDate" type="date" required>
+          </div>
+
+          <div class="field-group">
+            <label for="formBajaReason">Motivo de baja</label>
+            <select id="formBajaReason" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formBajaPhysicalState">Estado físico</label>
+            <select id="formBajaPhysicalState" required></select>
+          </div>
+
+          <div class="field-group">
+            <label for="formBajaValue">Valor referencial (S/)</label>
+            <input
+              id="formBajaValue"
+              type="number"
+              min="0"
+              step="0.01"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="formBajaMaintenance">ID de mantenimiento</label>
+            <input
+              id="formBajaMaintenance"
+              type="text"
+              placeholder="MNT-2026-000001"
+            >
+          </div>
+
+          <div class="field-group field-span-2">
+            <label for="formBajaEvidence">URL de evidencia</label>
+            <input
+              id="formBajaEvidence"
+              type="url"
+              placeholder="https://..."
+            >
+          </div>
+
+          <div class="field-group field-span-3">
+            <label for="formBajaDetail">Detalle técnico y sustento</label>
+            <textarea
+              id="formBajaDetail"
+              rows="4"
+              required
+            ></textarea>
+          </div>
+
+          <div class="field-group field-span-3">
+            <label for="formBajaNotes">Observaciones</label>
+            <textarea id="formBajaNotes" rows="3"></textarea>
+          </div>
+        </div>
+
+        <p id="bajaFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelBajaFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveBajaButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Registrar solicitud
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="maintenanceModal" class="modal-backdrop" hidden>
     <section
       class="modal-card modal-card-extra-wide"
@@ -2991,7 +3257,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.13.0"></script>
-  <script src="js/app.js?v=0.13.0"></script>
+  <script src="js/config.js?v=0.14.0"></script>
+  <script src="js/app.js?v=0.14.0"></script>
 </body>
 </html>

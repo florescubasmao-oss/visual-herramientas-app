@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const bajasView = document.getElementById('bajasView');
   const maintenanceView = document.getElementById('maintenanceView');
   const inventoriesView = document.getElementById('inventoriesView');
   const cargosView = document.getElementById('cargosView');
@@ -33,6 +34,43 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backBajasButton = document.getElementById('backBajasButton');
+  const downloadBajasButton = document.getElementById('downloadBajasButton');
+  const newBajaButton = document.getElementById('newBajaButton');
+  const refreshBajasButton = document.getElementById('refreshBajasButton');
+  const bajaSearch = document.getElementById('bajaSearch');
+  const bajaSiteFilter = document.getElementById('bajaSiteFilter');
+  const bajaReasonFilter = document.getElementById('bajaReasonFilter');
+  const bajaStateFilter = document.getElementById('bajaStateFilter');
+  const bajaDateFrom = document.getElementById('bajaDateFrom');
+  const bajaDateTo = document.getElementById('bajaDateTo');
+  const bajasLoading = document.getElementById('bajasLoading');
+  const bajasTable = document.getElementById('bajasTable');
+  const bajasTableBody = document.getElementById('bajasTableBody');
+  const bajasEmpty = document.getElementById('bajasEmpty');
+  const bajaSummaryTotal = document.getElementById('bajaSummaryTotal');
+  const bajaSummaryRequested = document.getElementById('bajaSummaryRequested');
+  const bajaSummaryApproved = document.getElementById('bajaSummaryApproved');
+  const bajaSummaryExecuted = document.getElementById('bajaSummaryExecuted');
+
+  const bajaModal = document.getElementById('bajaModal');
+  const closeBajaModalButton = document.getElementById('closeBajaModalButton');
+  const cancelBajaFormButton = document.getElementById('cancelBajaFormButton');
+  const bajaForm = document.getElementById('bajaForm');
+  const bajaModalTitle = document.getElementById('bajaModalTitle');
+  const formBajaId = document.getElementById('formBajaId');
+  const formBajaTool = document.getElementById('formBajaTool');
+  const formBajaDate = document.getElementById('formBajaDate');
+  const formBajaReason = document.getElementById('formBajaReason');
+  const formBajaPhysicalState = document.getElementById('formBajaPhysicalState');
+  const formBajaValue = document.getElementById('formBajaValue');
+  const formBajaMaintenance = document.getElementById('formBajaMaintenance');
+  const formBajaEvidence = document.getElementById('formBajaEvidence');
+  const formBajaDetail = document.getElementById('formBajaDetail');
+  const formBajaNotes = document.getElementById('formBajaNotes');
+  const bajaFormMessage = document.getElementById('bajaFormMessage');
+  const saveBajaButton = document.getElementById('saveBajaButton');
 
   const backMaintenanceButton = document.getElementById('backMaintenanceButton');
   const downloadMaintenanceButton = document.getElementById('downloadMaintenanceButton');
@@ -424,6 +462,20 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let bajas = [];
+  let bajasFiltradas = [];
+  let puedeRegistrarBajas = false;
+  let puedeEditarBajas = false;
+  let puedeAprobarBajas = false;
+  let puedeAnularBajas = false;
+  let puedeDescargarBajas = false;
+  let catalogosBajas = {
+    herramientas: [],
+    sedes: [],
+    motivos: [],
+    estadosFisicos: [],
+    estados: []
+  };
   let mantenimientos = [];
   let mantenimientosFiltrados = [];
   let puedeRegistrarMantenimientos = false;
@@ -560,6 +612,32 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backBajasButton.addEventListener('click', mostrarDashboard);
+    newBajaButton.addEventListener('click', abrirNuevaBaja);
+    refreshBajasButton.addEventListener('click', cargarBajas);
+    downloadBajasButton.addEventListener('click', descargarBajasCsv);
+    closeBajaModalButton.addEventListener('click', cerrarFormularioBaja);
+    cancelBajaFormButton.addEventListener('click', cerrarFormularioBaja);
+    bajaForm.addEventListener('submit', guardarBaja);
+
+    bajaModal.addEventListener('click', (event) => {
+      if (event.target === bajaModal) {
+        cerrarFormularioBaja();
+      }
+    });
+
+    [
+      bajaSearch,
+      bajaSiteFilter,
+      bajaReasonFilter,
+      bajaStateFilter,
+      bajaDateFrom,
+      bajaDateTo
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarBajas);
+      control.addEventListener('change', renderizarBajas);
+    });
+
     backMaintenanceButton.addEventListener('click', mostrarDashboard);
     newMaintenanceButton.addEventListener('click', abrirNuevoMantenimiento);
     refreshMaintenanceButton.addEventListener('click', cargarMantenimientos);
@@ -1071,6 +1149,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'BAJAS') {
+      abrirBajas();
+      return;
+    }
+
     if (modulo === 'MANTENIMIENTOS') {
       abrirMantenimientos();
       return;
@@ -1140,8 +1223,1107 @@
 
 
 
+
+  async function abrirBajas() {
+    dashboardView.hidden = true;
+    maintenanceView.hidden = true;
+    inventoriesView.hidden = true;
+    cargosView.hidden = true;
+    stockView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    bajasView.hidden = false;
+
+    await cargarBajas();
+  }
+
+  async function cargarBajas() {
+    bajasLoading.hidden = false;
+    bajasLoading.textContent = 'Cargando solicitudes de baja…';
+    bajasTable.hidden = true;
+    bajasEmpty.hidden = true;
+    refreshBajasButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_bajas',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar las bajas.'
+        );
+      }
+
+      bajas =
+        Array.isArray(
+          respuesta.bajas
+        )
+          ? respuesta.bajas
+          : [];
+
+      puedeRegistrarBajas =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarBajas =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      puedeAprobarBajas =
+        Boolean(
+          respuesta.puedeAprobar
+        );
+
+      puedeAnularBajas =
+        Boolean(
+          respuesta.puedeAnular
+        );
+
+      puedeDescargarBajas =
+        Boolean(
+          respuesta.puedeDescargar
+        );
+
+      catalogosBajas =
+        respuesta.catalogos || {
+          herramientas: [],
+          sedes: [],
+          motivos: [],
+          estadosFisicos: [],
+          estados: []
+        };
+
+      newBajaButton.hidden =
+        !puedeRegistrarBajas;
+
+      downloadBajasButton.hidden =
+        !puedeDescargarBajas;
+
+      actualizarCatalogosBajas();
+      renderizarBajas();
+      bajasLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      bajasLoading.hidden = false;
+      bajasLoading.textContent = error.message;
+      bajasTable.hidden = true;
+
+    } finally {
+      refreshBajasButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosBajas() {
+    llenarSelectConTodos(
+      bajaSiteFilter,
+      catalogosBajas.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      bajaReasonFilter,
+      catalogosBajas.motivos || [],
+      'Todos'
+    );
+
+    llenarSelectConTodos(
+      bajaStateFilter,
+      catalogosBajas.estados || [],
+      'Todos'
+    );
+
+    llenarSelectFormulario(
+      formBajaReason,
+      catalogosBajas.motivos || []
+    );
+
+    llenarSelectFormulario(
+      formBajaPhysicalState,
+      catalogosBajas.estadosFisicos || []
+    );
+
+    llenarHerramientasBajaFormulario();
+  }
+
+  function llenarHerramientasBajaFormulario() {
+    const actual =
+      formBajaTool.value;
+
+    formBajaTool.innerHTML = '';
+
+    (
+      catalogosBajas.herramientas || []
+    ).forEach(herramienta => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        herramienta.idHerramienta;
+
+      option.textContent =
+        `${herramienta.codigoInterno || herramienta.idHerramienta} · ` +
+        `${herramienta.tipoHerramienta} · ${formatearTexto(
+          herramienta.sede
+        )} · ${herramienta.responsable || 'Sin responsable'}`;
+
+      formBajaTool.appendChild(
+        option
+      );
+    });
+
+    if (
+      actual &&
+      Array.from(
+        formBajaTool.options
+      ).some(option =>
+        option.value === actual
+      )
+    ) {
+      formBajaTool.value =
+        actual;
+    }
+  }
+
+  function renderizarBajas() {
+    const texto =
+      normalizarBusqueda(
+        bajaSearch.value
+      );
+
+    const sede =
+      String(
+        bajaSiteFilter.value || ''
+      ).toUpperCase();
+
+    const motivo =
+      String(
+        bajaReasonFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        bajaStateFilter.value || ''
+      ).toUpperCase();
+
+    const desde =
+      bajaDateFrom.value;
+
+    const hasta =
+      bajaDateTo.value;
+
+    bajasFiltradas =
+      bajas.filter(item => {
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            item.idBaja,
+            item.idHerramienta,
+            item.codigoInterno,
+            item.tipoHerramienta,
+            item.marca,
+            item.modelo,
+            item.serie,
+            item.responsableActual,
+            item.detalle,
+            item.idMantenimiento,
+            item.idMovimientoBaja,
+            item.observaciones
+          ].join(' ')).includes(
+            texto
+          );
+
+        const coincideSede =
+          !sede ||
+          item.sede === sede;
+
+        const coincideMotivo =
+          !motivo ||
+          item.motivoBaja ===
+            motivo;
+
+        const coincideEstado =
+          !estado ||
+          item.estadoBaja ===
+            estado;
+
+        const fecha =
+          item.fechaSolicitudIso ||
+          convertirFechaMovimientoIso(
+            item.fechaSolicitud
+          );
+
+        const coincideDesde =
+          !desde ||
+          !fecha ||
+          fecha >= desde;
+
+        const coincideHasta =
+          !hasta ||
+          !fecha ||
+          fecha <= hasta;
+
+        return (
+          coincideTexto &&
+          coincideSede &&
+          coincideMotivo &&
+          coincideEstado &&
+          coincideDesde &&
+          coincideHasta
+        );
+      });
+
+    bajasTableBody.innerHTML = '';
+
+    bajasFiltradas.forEach(item => {
+      bajasTableBody.appendChild(
+        crearFilaBaja(
+          item
+        )
+      );
+    });
+
+    bajaSummaryTotal.textContent =
+      String(
+        bajasFiltradas.length
+      );
+
+    bajaSummaryRequested.textContent =
+      String(
+        bajasFiltradas.filter(item =>
+          item.estadoBaja ===
+          'SOLICITADA'
+        ).length
+      );
+
+    bajaSummaryApproved.textContent =
+      String(
+        bajasFiltradas.filter(item =>
+          item.estadoBaja ===
+          'APROBADA'
+        ).length
+      );
+
+    bajaSummaryExecuted.textContent =
+      String(
+        bajasFiltradas.filter(item =>
+          item.estadoBaja ===
+          'EJECUTADA'
+        ).length
+      );
+
+    bajasLoading.hidden = true;
+    bajasTable.hidden =
+      bajasFiltradas.length === 0;
+    bajasEmpty.hidden =
+      bajasFiltradas.length !== 0;
+  }
+
+  function crearFilaBaja(
+    baja
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const principal =
+      document.createElement(
+        'td'
+      );
+
+    principal.className =
+      'baja-main-cell';
+
+    principal.innerHTML =
+      `<strong>${escaparHtml(
+        baja.fechaSolicitud ||
+        'Sin fecha'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        baja.solicitante ||
+        baja.usuarioRegistra ||
+        ''
+      )}</small>` +
+      `<span class="baja-id">${escaparHtml(
+        baja.idBaja
+      )}</span>`;
+
+    fila.appendChild(
+      principal
+    );
+
+    const herramienta =
+      document.createElement(
+        'td'
+      );
+
+    herramienta.className =
+      'baja-tool-cell';
+
+    herramienta.innerHTML =
+      `<strong>${escaparHtml(
+        baja.tipoHerramienta ||
+        'Sin herramienta'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          baja.codigoInterno,
+          baja.marca,
+          baja.modelo,
+          baja.serie
+            ? `Serie ${baja.serie}`
+            : ''
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      herramienta
+    );
+
+    const motivo =
+      document.createElement(
+        'td'
+      );
+
+    motivo.className =
+      'baja-detail-cell';
+
+    motivo.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          baja.motivoBaja
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        `${formatearTexto(
+          baja.estadoFisico
+        )} · ${baja.detalle || 'Sin detalle'}`
+      )}</small>`;
+
+    fila.appendChild(
+      motivo
+    );
+
+    const ubicacion =
+      document.createElement(
+        'td'
+      );
+
+    ubicacion.className =
+      'baja-detail-cell';
+
+    ubicacion.innerHTML =
+      `<strong>${escaparHtml(
+        baja.ubicacionActual ||
+        'Sin ubicación'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        baja.responsableActual ||
+        'Sin responsable'
+      )}</small>`;
+
+    fila.appendChild(
+      ubicacion
+    );
+
+    fila.appendChild(
+      crearCelda(
+        formatearCostoMantenimiento(
+          baja.valorReferencial
+        )
+      )
+    );
+
+    const estado =
+      document.createElement(
+        'td'
+      );
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    insignia.className =
+      'status-badge ' +
+      (
+        baja.estadoBaja ===
+          'EJECUTADA'
+          ? 'status-active'
+          : [
+              'RECHAZADA',
+              'ANULADA'
+            ].includes(
+              baja.estadoBaja
+            )
+            ? 'status-inactive'
+            : ''
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        baja.estadoBaja ||
+        'SOLICITADA'
+      );
+
+    estado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      estado
+    );
+
+    const sustento =
+      document.createElement(
+        'td'
+      );
+
+    sustento.className =
+      'baja-support-links';
+
+    if (
+      baja.idMantenimiento
+    ) {
+      const mantenimiento =
+        document.createElement(
+          'span'
+        );
+
+      mantenimiento.textContent =
+        `Mantenimiento: ${baja.idMantenimiento}`;
+
+      sustento.appendChild(
+        mantenimiento
+      );
+    }
+
+    if (
+      baja.idMovimientoBaja
+    ) {
+      const movimiento =
+        document.createElement(
+          'span'
+        );
+
+      movimiento.textContent =
+        `Movimiento: ${baja.idMovimientoBaja}`;
+
+      sustento.appendChild(
+        movimiento
+      );
+    }
+
+    if (
+      /^https?:\/\//i.test(
+        baja.evidenciaUrl || ''
+      )
+    ) {
+      const enlace =
+        document.createElement(
+          'a'
+        );
+
+      enlace.href =
+        baja.evidenciaUrl;
+
+      enlace.target =
+        '_blank';
+
+      enlace.rel =
+        'noopener noreferrer';
+
+      enlace.textContent =
+        'Ver evidencia';
+
+      sustento.appendChild(
+        enlace
+      );
+    }
+
+    if (
+      !sustento.children.length
+    ) {
+      sustento.textContent =
+        'Sin referencias';
+    }
+
+    fila.appendChild(
+      sustento
+    );
+
+    const acciones =
+      document.createElement(
+        'td'
+      );
+
+    acciones.className =
+      'actions-cell';
+
+    if (
+      puedeEditarBajas &&
+      [
+        'SOLICITADA',
+        'RECHAZADA'
+      ].includes(
+        baja.estadoBaja
+      )
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarBaja(
+              baja
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAprobarBajas &&
+      baja.estadoBaja ===
+        'SOLICITADA'
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Aprobar',
+          () =>
+            cambiarEstadoBaja(
+              baja,
+              'APROBADA'
+            )
+        )
+      );
+
+      acciones.appendChild(
+        crearBotonAccion(
+          'Rechazar',
+          () =>
+            cambiarEstadoBaja(
+              baja,
+              'RECHAZADA',
+              true
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAprobarBajas &&
+      baja.estadoBaja ===
+        'APROBADA'
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Ejecutar',
+          () =>
+            ejecutarBaja(
+              baja
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAnularBajas &&
+      [
+        'SOLICITADA',
+        'APROBADA'
+      ].includes(
+        baja.estadoBaja
+      )
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Anular',
+          () =>
+            cambiarEstadoBaja(
+              baja,
+              'ANULADA',
+              true
+            )
+        )
+      );
+    }
+
+    if (
+      !acciones.children.length
+    ) {
+      acciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      acciones
+    );
+
+    return fila;
+  }
+
+  function abrirNuevaBaja() {
+    bajaForm.reset();
+    formBajaId.value = '';
+
+    actualizarCatalogosBajas();
+
+    const hoy =
+      new Date();
+
+    formBajaDate.value =
+      new Date(
+        hoy.getTime() -
+        hoy.getTimezoneOffset() *
+        60000
+      )
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    formBajaTool.disabled =
+      false;
+
+    bajaModalTitle.textContent =
+      'Nueva solicitud de baja';
+
+    saveBajaButton.textContent =
+      'Registrar solicitud';
+
+    bajaFormMessage.textContent =
+      '';
+
+    bajaModal.hidden = false;
+    formBajaTool.focus();
+  }
+
+  function abrirEditarBaja(
+    baja
+  ) {
+    bajaForm.reset();
+    actualizarCatalogosBajas();
+
+    asegurarHerramientaBajaFormulario(
+      baja
+    );
+
+    formBajaId.value =
+      baja.idBaja;
+
+    formBajaTool.value =
+      baja.idHerramienta;
+
+    formBajaTool.disabled =
+      true;
+
+    formBajaDate.value =
+      baja.fechaSolicitudIso ||
+      '';
+
+    asegurarOpcionSelect(
+      formBajaReason,
+      baja.motivoBaja
+    );
+
+    formBajaReason.value =
+      baja.motivoBaja ||
+      '';
+
+    asegurarOpcionSelect(
+      formBajaPhysicalState,
+      baja.estadoFisico
+    );
+
+    formBajaPhysicalState.value =
+      baja.estadoFisico ||
+      '';
+
+    formBajaValue.value =
+      Number(
+        baja.valorReferencial || 0
+      ) || '';
+
+    formBajaMaintenance.value =
+      baja.idMantenimiento ||
+      '';
+
+    formBajaEvidence.value =
+      baja.evidenciaUrl ||
+      '';
+
+    formBajaDetail.value =
+      baja.detalle ||
+      '';
+
+    formBajaNotes.value =
+      baja.observaciones ||
+      '';
+
+    bajaModalTitle.textContent =
+      `Editar ${baja.idBaja}`;
+
+    saveBajaButton.textContent =
+      'Guardar y reenviar';
+
+    bajaFormMessage.textContent =
+      '';
+
+    bajaModal.hidden = false;
+    formBajaDate.focus();
+  }
+
+  function asegurarHerramientaBajaFormulario(
+    baja
+  ) {
+    if (
+      Array.from(
+        formBajaTool.options
+      ).some(option =>
+        option.value ===
+        baja.idHerramienta
+      )
+    ) {
+      return;
+    }
+
+    const option =
+      document.createElement(
+        'option'
+      );
+
+    option.value =
+      baja.idHerramienta;
+
+    option.textContent =
+      `${baja.codigoInterno || baja.idHerramienta} · ` +
+      `${baja.tipoHerramienta}`;
+
+    formBajaTool.appendChild(
+      option
+    );
+  }
+
+  function cerrarFormularioBaja() {
+    bajaModal.hidden = true;
+    bajaFormMessage.textContent =
+      '';
+    formBajaTool.disabled =
+      false;
+  }
+
+  async function guardarBaja(
+    event
+  ) {
+    event.preventDefault();
+    bajaFormMessage.textContent =
+      '';
+
+    const payload = {
+      accion:
+        'guardar_baja',
+      token:
+        auth.token,
+      idBaja:
+        formBajaId.value.trim(),
+      idHerramienta:
+        formBajaTool.value,
+      fechaSolicitud:
+        formBajaDate.value,
+      motivoBaja:
+        formBajaReason.value,
+      estadoFisico:
+        formBajaPhysicalState.value,
+      valorReferencial:
+        formBajaValue.value,
+      idMantenimiento:
+        formBajaMaintenance.value.trim(),
+      evidenciaUrl:
+        formBajaEvidence.value.trim(),
+      detalle:
+        formBajaDetail.value.trim(),
+      observaciones:
+        formBajaNotes.value.trim()
+    };
+
+    if (
+      !payload.idHerramienta ||
+      !payload.fechaSolicitud ||
+      !payload.motivoBaja ||
+      !payload.estadoFisico ||
+      !payload.detalle
+    ) {
+      bajaFormMessage.textContent =
+        'Completa la herramienta, fecha, motivo, estado físico y detalle.';
+      return;
+    }
+
+    saveBajaButton.disabled =
+      true;
+
+    saveBajaButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar la solicitud.'
+        );
+      }
+
+      cerrarFormularioBaja();
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarBajas();
+
+    } catch (error) {
+      bajaFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveBajaButton.disabled =
+        false;
+
+      saveBajaButton.textContent =
+        formBajaId.value
+          ? 'Guardar y reenviar'
+          : 'Registrar solicitud';
+    }
+  }
+
+  async function cambiarEstadoBaja(
+    baja,
+    estado,
+    requiereComentario = false
+  ) {
+    let comentario = '';
+
+    if (requiereComentario) {
+      comentario =
+        window.prompt(
+          estado === 'RECHAZADA'
+            ? 'Indica el motivo del rechazo:'
+            : 'Indica el motivo de la anulación:'
+        );
+
+      if (
+        comentario === null
+      ) {
+        return;
+      }
+
+      comentario =
+        comentario.trim();
+
+      if (!comentario) {
+        window.alert(
+          'Debes ingresar un motivo.'
+        );
+
+        return;
+      }
+
+    } else {
+      if (
+        !window.confirm(
+          `¿Deseas aprobar la baja ${baja.idBaja}?`
+        )
+      ) {
+        return;
+      }
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_baja',
+          token:
+            auth.token,
+          idBaja:
+            baja.idBaja,
+          estado:
+            estado,
+          comentario:
+            comentario
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarBajas();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
+  async function ejecutarBaja(
+    baja
+  ) {
+    let idMovimiento =
+      window.prompt(
+        'Ingresa el movimiento confirmado de BAJA_HERRAMIENTA:',
+        baja.idMovimientoBaja ||
+        'MOV-'
+      );
+
+    if (
+      idMovimiento === null
+    ) {
+      return;
+    }
+
+    idMovimiento =
+      idMovimiento.trim()
+        .toUpperCase();
+
+    if (!idMovimiento) {
+      window.alert(
+        'Debes ingresar el movimiento de baja.'
+      );
+
+      return;
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_baja',
+          token:
+            auth.token,
+          idBaja:
+            baja.idBaja,
+          estado:
+            'EJECUTADA',
+          idMovimientoBaja:
+            idMovimiento
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo ejecutar la baja.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarBajas();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
+  function descargarBajasCsv() {
+    const encabezados = [
+      'ID_BAJA',
+      'FECHA_SOLICITUD',
+      'SEDE',
+      'ID_HERRAMIENTA',
+      'CODIGO_INTERNO',
+      'TIPO_HERRAMIENTA',
+      'MARCA',
+      'MODELO',
+      'SERIE',
+      'UBICACION_ACTUAL',
+      'RESPONSABLE_ACTUAL',
+      'MOTIVO_BAJA',
+      'DETALLE',
+      'ESTADO_FISICO',
+      'VALOR_REFERENCIAL',
+      'ID_MANTENIMIENTO',
+      'ID_MOVIMIENTO_BAJA',
+      'ESTADO_BAJA',
+      'SOLICITANTE',
+      'FECHA_DECISION',
+      'USUARIO_DECIDE',
+      'FECHA_EJECUCION',
+      'USUARIO_EJECUTA',
+      'EVIDENCIA_URL',
+      'OBSERVACIONES'
+    ];
+
+    const filas =
+      bajasFiltradas.map(item => [
+        item.idBaja,
+        item.fechaSolicitud,
+        item.sede,
+        item.idHerramienta,
+        item.codigoInterno,
+        item.tipoHerramienta,
+        item.marca,
+        item.modelo,
+        item.serie,
+        item.ubicacionActual,
+        item.responsableActual,
+        item.motivoBaja,
+        item.detalle,
+        item.estadoFisico,
+        item.valorReferencial,
+        item.idMantenimiento,
+        item.idMovimientoBaja,
+        item.estadoBaja,
+        item.solicitante,
+        item.fechaDecision,
+        item.usuarioDecide,
+        item.fechaEjecucion,
+        item.usuarioEjecuta,
+        item.evidenciaUrl,
+        item.observaciones
+      ]);
+
+    descargarCsvGenerico(
+      `bajas_${new Date().toISOString().slice(0, 10)}.csv`,
+      encabezados,
+      filas
+    );
+  }
+
   async function abrirMantenimientos() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -2320,6 +3502,7 @@
 
   async function abrirInventarios() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
@@ -3841,6 +5024,7 @@
 
   async function abrirCargos() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     stockView.hidden = true;
@@ -5175,6 +6359,7 @@
 
   async function abrirStockActual() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -5869,6 +7054,7 @@
 
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -7406,6 +8592,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -8404,6 +9591,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -9239,6 +10427,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -9907,6 +11096,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -10728,6 +11918,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -11400,6 +12591,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -11415,6 +12607,7 @@
   }
 
   function mostrarDashboard() {
+    bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
     cargosView.hidden = true;
@@ -11941,6 +13134,8 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    bajas = [];
+    bajasFiltradas = [];
     mantenimientos = [];
     mantenimientosFiltrados = [];
     inventarios = [];
