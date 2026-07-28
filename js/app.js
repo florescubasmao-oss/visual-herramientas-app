@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const administrationView = document.getElementById('administrationView');
   const reportsView = document.getElementById('reportsView');
   const alertsView = document.getElementById('alertsView');
   const bajasView = document.getElementById('bajasView');
@@ -36,6 +37,44 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backAdministrationButton = document.getElementById('backAdministrationButton');
+  const newProfileButton = document.getElementById('newProfileButton');
+  const refreshAdministrationButton = document.getElementById('refreshAdministrationButton');
+  const administrationSummaryProfiles = document.getElementById('administrationSummaryProfiles');
+  const administrationSummaryModules = document.getElementById('administrationSummaryModules');
+  const administrationSummaryUsers = document.getElementById('administrationSummaryUsers');
+  const administrationSummarySheets = document.getElementById('administrationSummarySheets');
+  const administrationTabButtons = Array.from(document.querySelectorAll('[data-administration-tab]'));
+  const administrationPermissionsPanel = document.getElementById('administrationPermissionsPanel');
+  const administrationDiagnosticsPanel = document.getElementById('administrationDiagnosticsPanel');
+  const administrationProfileSelect = document.getElementById('administrationProfileSelect');
+  const administrationProfileState = document.getElementById('administrationProfileState');
+  const administrationProfileUsers = document.getElementById('administrationProfileUsers');
+  const administrationProfileCoverage = document.getElementById('administrationProfileCoverage');
+  const saveAdministrationPermissionsButton = document.getElementById('saveAdministrationPermissionsButton');
+  const administrationProtectedMessage = document.getElementById('administrationProtectedMessage');
+  const administrationLoading = document.getElementById('administrationLoading');
+  const administrationPermissionsTable = document.getElementById('administrationPermissionsTable');
+  const administrationPermissionsBody = document.getElementById('administrationPermissionsBody');
+  const administrationPermissionsEmpty = document.getElementById('administrationPermissionsEmpty');
+  const administrationSystemName = document.getElementById('administrationSystemName');
+  const administrationSystemVersion = document.getElementById('administrationSystemVersion');
+  const administrationSystemDatabase = document.getElementById('administrationSystemDatabase');
+  const administrationSystemTimezone = document.getElementById('administrationSystemTimezone');
+  const administrationSystemSession = document.getElementById('administrationSystemSession');
+  const administrationSheetsBody = document.getElementById('administrationSheetsBody');
+  const administrationProfilesBody = document.getElementById('administrationProfilesBody');
+
+  const profileModal = document.getElementById('profileModal');
+  const closeProfileModalButton = document.getElementById('closeProfileModalButton');
+  const cancelProfileFormButton = document.getElementById('cancelProfileFormButton');
+  const profileForm = document.getElementById('profileForm');
+  const formProfileName = document.getElementById('formProfileName');
+  const formProfileSource = document.getElementById('formProfileSource');
+  const formProfileState = document.getElementById('formProfileState');
+  const profileFormMessage = document.getElementById('profileFormMessage');
+  const saveProfileButton = document.getElementById('saveProfileButton');
 
   const backReportsButton = document.getElementById('backReportsButton');
   const downloadReportsButton = document.getElementById('downloadReportsButton');
@@ -503,6 +542,10 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let administracionActual = null;
+  let administracionPerfilSeleccionado = '';
+  let administracionPestanaActiva = 'PERMISOS';
+  let puedeAdministrarSistema = false;
   let reporteActual = null;
   let reporteVistaActiva = 'RESUMEN';
   let puedeDescargarReportes = false;
@@ -665,6 +708,37 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backAdministrationButton.addEventListener('click', mostrarDashboard);
+    refreshAdministrationButton.addEventListener('click', cargarAdministracion);
+    newProfileButton.addEventListener('click', abrirNuevoPerfil);
+    saveAdministrationPermissionsButton.addEventListener('click', guardarPermisosAdministracion);
+    administrationProfileSelect.addEventListener('change', () => {
+      administracionPerfilSeleccionado =
+        administrationProfileSelect.value;
+      renderizarPerfilAdministracion();
+    });
+
+    administrationTabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        administracionPestanaActiva =
+          String(
+            button.dataset.administrationTab || 'PERMISOS'
+          ).toUpperCase();
+
+        actualizarPestanasAdministracion();
+      });
+    });
+
+    closeProfileModalButton.addEventListener('click', cerrarFormularioPerfil);
+    cancelProfileFormButton.addEventListener('click', cerrarFormularioPerfil);
+    profileForm.addEventListener('submit', crearPerfilAdministracion);
+
+    profileModal.addEventListener('click', (event) => {
+      if (event.target === profileModal) {
+        cerrarFormularioPerfil();
+      }
+    });
+
     backReportsButton.addEventListener('click', mostrarDashboard);
     refreshReportsButton.addEventListener('click', cargarReportes);
     downloadReportsButton.addEventListener('click', descargarVistaReporte);
@@ -1237,6 +1311,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'ADMINISTRACION') {
+      abrirAdministracion();
+      return;
+    }
+
     if (modulo === 'REPORTES') {
       abrirReportes();
       return;
@@ -1324,8 +1403,897 @@
 
 
 
+
+  async function abrirAdministracion() {
+    dashboardView.hidden = true;
+    reportsView.hidden = true;
+    alertsView.hidden = true;
+    bajasView.hidden = true;
+    maintenanceView.hidden = true;
+    inventoriesView.hidden = true;
+    cargosView.hidden = true;
+    stockView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    administrationView.hidden = false;
+
+    actualizarPestanasAdministracion();
+    await cargarAdministracion();
+  }
+
+  async function cargarAdministracion() {
+    administrationLoading.hidden = false;
+    administrationLoading.textContent = 'Cargando perfiles y diagnóstico…';
+    administrationPermissionsTable.hidden = true;
+    administrationPermissionsEmpty.hidden = true;
+    refreshAdministrationButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_administracion',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cargar la administración.'
+        );
+      }
+
+      administracionActual =
+        respuesta;
+
+      puedeAdministrarSistema =
+        Boolean(
+          respuesta.puedeAdministrar
+        );
+
+      newProfileButton.hidden =
+        !puedeAdministrarSistema;
+
+      actualizarResumenAdministracion();
+      actualizarSelectorPerfilesAdministracion();
+      renderizarPerfilAdministracion();
+      renderizarDiagnosticoAdministracion();
+
+      administrationLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      administracionActual = null;
+      administrationLoading.hidden = false;
+      administrationLoading.textContent = error.message;
+      administrationPermissionsTable.hidden = true;
+      administrationPermissionsEmpty.hidden = true;
+
+    } finally {
+      refreshAdministrationButton.disabled = false;
+    }
+  }
+
+  function actualizarResumenAdministracion() {
+    const diagnostico =
+      administracionActual &&
+      administracionActual.diagnostico
+        ? administracionActual.diagnostico
+        : {};
+
+    administrationSummaryProfiles.textContent =
+      String(
+        diagnostico.totalPerfiles || 0
+      );
+
+    administrationSummaryModules.textContent =
+      String(
+        diagnostico.totalModulos || 0
+      );
+
+    administrationSummaryUsers.textContent =
+      String(
+        diagnostico.usuariosActivos || 0
+      );
+
+    administrationSummarySheets.textContent =
+      `${diagnostico.hojasCorrectas || 0}/${diagnostico.totalHojas || 0}`;
+  }
+
+  function actualizarSelectorPerfilesAdministracion() {
+    const anterior =
+      administracionPerfilSeleccionado ||
+      administrationProfileSelect.value;
+
+    administrationProfileSelect.innerHTML = '';
+
+    const perfiles =
+      administracionActual &&
+      Array.isArray(
+        administracionActual.perfiles
+      )
+        ? administracionActual.perfiles
+        : [];
+
+    perfiles.forEach(perfil => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        perfil.perfil;
+
+      option.textContent =
+        `${formatearTexto(
+          perfil.perfil
+        )} · ${formatearTexto(
+          perfil.estadoPerfil
+        )}`;
+
+      administrationProfileSelect.appendChild(
+        option
+      );
+    });
+
+    if (
+      anterior &&
+      perfiles.some(perfil =>
+        perfil.perfil === anterior
+      )
+    ) {
+      administracionPerfilSeleccionado =
+        anterior;
+
+    } else if (
+      administracionActual.perfilSesion &&
+      perfiles.some(perfil =>
+        perfil.perfil ===
+        administracionActual.perfilSesion
+      )
+    ) {
+      administracionPerfilSeleccionado =
+        administracionActual.perfilSesion;
+
+    } else {
+      administracionPerfilSeleccionado =
+        perfiles.length
+          ? perfiles[0].perfil
+          : '';
+    }
+
+    administrationProfileSelect.value =
+      administracionPerfilSeleccionado;
+  }
+
+  function obtenerPerfilAdministracionSeleccionado() {
+    if (
+      !administracionActual ||
+      !Array.isArray(
+        administracionActual.perfiles
+      )
+    ) {
+      return null;
+    }
+
+    return administracionActual.perfiles.find(perfil =>
+      perfil.perfil ===
+      administracionPerfilSeleccionado
+    ) || null;
+  }
+
+  function renderizarPerfilAdministracion() {
+    administrationPermissionsBody.innerHTML = '';
+
+    const perfil =
+      obtenerPerfilAdministracionSeleccionado();
+
+    if (!perfil) {
+      administrationPermissionsTable.hidden = true;
+      administrationPermissionsEmpty.hidden = false;
+      saveAdministrationPermissionsButton.hidden = true;
+      administrationProtectedMessage.hidden = true;
+      administrationProfileUsers.textContent = '0';
+      administrationProfileCoverage.textContent = '0/0';
+      return;
+    }
+
+    administrationProfileState.value =
+      perfil.estadoPerfil ||
+      'INACTIVO';
+
+    administrationProfileUsers.textContent =
+      String(
+        perfil.usuariosActivos || 0
+      );
+
+    const permisos =
+      Array.isArray(
+        perfil.permisos
+      )
+        ? perfil.permisos
+        : [];
+
+    const registrados =
+      permisos.filter(item =>
+        item.idPermiso
+      ).length;
+
+    administrationProfileCoverage.textContent =
+      `${registrados}/${permisos.length}`;
+
+    const protegido =
+      Boolean(
+        perfil.protegido
+      );
+
+    const editable =
+      puedeAdministrarSistema &&
+      !protegido;
+
+    administrationProfileState.disabled =
+      !editable;
+
+    saveAdministrationPermissionsButton.hidden =
+      !editable;
+
+    administrationProtectedMessage.hidden =
+      !protegido;
+
+    permisos.forEach(permiso => {
+      administrationPermissionsBody.appendChild(
+        crearFilaPermisoAdministracion(
+          permiso,
+          editable
+        )
+      );
+    });
+
+    administrationPermissionsTable.hidden =
+      permisos.length === 0;
+
+    administrationPermissionsEmpty.hidden =
+      permisos.length !== 0;
+  }
+
+  function crearFilaPermisoAdministracion(
+    permiso,
+    editable
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    fila.dataset.module =
+      permiso.modulo;
+
+    const modulo =
+      document.createElement(
+        'td'
+      );
+
+    modulo.className =
+      'administration-module-cell';
+
+    modulo.innerHTML =
+      `<strong>${escaparHtml(
+        permiso.etiqueta ||
+        formatearTexto(
+          permiso.modulo
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        `${permiso.idModulo || ''} · ${permiso.modulo || ''}`
+      )}</small>`;
+
+    fila.appendChild(
+      modulo
+    );
+
+    const campos = [
+      'ver',
+      'registrar',
+      'editar',
+      'aprobar',
+      'anular',
+      'descargar',
+      'administrar'
+    ];
+
+    const capacidades =
+      new Set(
+        (
+          permiso.capacidades || []
+        ).map(valor =>
+          String(valor).toUpperCase()
+        )
+      );
+
+    campos.forEach(campo => {
+      const celda =
+        document.createElement(
+          'td'
+        );
+
+      celda.className =
+        'administration-permission-cell';
+
+      const checkbox =
+        document.createElement(
+          'input'
+        );
+
+      checkbox.type =
+        'checkbox';
+
+      checkbox.dataset.permissionField =
+        campo;
+
+      checkbox.checked =
+        Boolean(
+          permiso[campo]
+        );
+
+      const capacidad =
+        campo.toUpperCase();
+
+      checkbox.disabled =
+        !editable ||
+        !capacidades.has(
+          capacidad
+        );
+
+      checkbox.addEventListener(
+        'change',
+        () => {
+          if (
+            campo !== 'ver' &&
+            checkbox.checked
+          ) {
+            const ver =
+              fila.querySelector(
+                '[data-permission-field="ver"]'
+              );
+
+            if (
+              ver &&
+              !ver.disabled
+            ) {
+              ver.checked = true;
+            }
+          }
+
+          if (
+            campo === 'ver' &&
+            !checkbox.checked
+          ) {
+            fila
+              .querySelectorAll(
+                '[data-permission-field]'
+              )
+              .forEach(control => {
+                if (
+                  control !== checkbox &&
+                  !control.disabled
+                ) {
+                  control.checked = false;
+                }
+              });
+          }
+
+          actualizarEstadoAlcanceFilaAdministracion(
+            fila
+          );
+        }
+      );
+
+      celda.appendChild(
+        checkbox
+      );
+
+      fila.appendChild(
+        celda
+      );
+    });
+
+    const celdaAlcance =
+      document.createElement(
+        'td'
+      );
+
+    const select =
+      document.createElement(
+        'select'
+      );
+
+    select.className =
+      'administration-scope-select';
+
+    select.dataset.permissionScope =
+      'SI';
+
+    const alcances =
+      administracionActual &&
+      Array.isArray(
+        administracionActual.alcances
+      )
+        ? administracionActual.alcances
+        : [];
+
+    alcances.forEach(alcance => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        alcance.valor;
+
+      option.textContent =
+        alcance.etiqueta;
+
+      select.appendChild(
+        option
+      );
+    });
+
+    select.value =
+      permiso.alcanceSede ===
+        'SEDE_BASE'
+        ? 'SEDE_BASE'
+        : 'ZONA_NORTE';
+
+    select.disabled =
+      !editable;
+
+    celdaAlcance.appendChild(
+      select
+    );
+
+    fila.appendChild(
+      celdaAlcance
+    );
+
+    actualizarEstadoAlcanceFilaAdministracion(
+      fila
+    );
+
+    return fila;
+  }
+
+  function actualizarEstadoAlcanceFilaAdministracion(
+    fila
+  ) {
+    const ver =
+      fila.querySelector(
+        '[data-permission-field="ver"]'
+      );
+
+    const alcance =
+      fila.querySelector(
+        '[data-permission-scope]'
+      );
+
+    if (
+      alcance &&
+      !alcance.dataset.locked
+    ) {
+      alcance.disabled =
+        Boolean(
+          alcance.disabled
+        ) ||
+        !(
+          ver &&
+          ver.checked
+        );
+    }
+  }
+
+  async function guardarPermisosAdministracion() {
+    const perfil =
+      obtenerPerfilAdministracionSeleccionado();
+
+    if (
+      !perfil ||
+      perfil.protegido
+    ) {
+      return;
+    }
+
+    const filas =
+      Array.from(
+        administrationPermissionsBody.querySelectorAll(
+          'tr[data-module]'
+        )
+      );
+
+    const permisos =
+      filas.map(fila => {
+        const leer =
+          campo => {
+            const control =
+              fila.querySelector(
+                `[data-permission-field="${campo}"]`
+              );
+
+            return Boolean(
+              control &&
+              control.checked
+            );
+          };
+
+        const alcance =
+          fila.querySelector(
+            '[data-permission-scope]'
+          );
+
+        return {
+          modulo:
+            fila.dataset.module,
+          ver:
+            leer('ver'),
+          registrar:
+            leer('registrar'),
+          editar:
+            leer('editar'),
+          aprobar:
+            leer('aprobar'),
+          anular:
+            leer('anular'),
+          descargar:
+            leer('descargar'),
+          administrar:
+            leer('administrar'),
+          alcanceSede:
+            alcance
+              ? alcance.value
+              : 'ZONA_NORTE'
+        };
+      });
+
+    const confirmado =
+      window.confirm(
+        `¿Deseas guardar la matriz completa del perfil ${formatearTexto(
+          perfil.perfil
+        )}?`
+      );
+
+    if (!confirmado) {
+      return;
+    }
+
+    saveAdministrationPermissionsButton.disabled =
+      true;
+
+    saveAdministrationPermissionsButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'guardar_permisos_perfil',
+          token:
+            auth.token,
+          perfil:
+            perfil.perfil,
+          estadoPerfil:
+            administrationProfileState.value,
+          permisos:
+            permisos
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron guardar los permisos.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarAdministracion();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+
+    } finally {
+      saveAdministrationPermissionsButton.disabled =
+        false;
+
+      saveAdministrationPermissionsButton.textContent =
+        'Guardar permisos';
+    }
+  }
+
+  function abrirNuevoPerfil() {
+    profileForm.reset();
+    profileFormMessage.textContent = '';
+    formProfileState.value = 'INACTIVO';
+    formProfileSource.innerHTML =
+      '<option value="">Perfil vacío</option>';
+
+    const perfiles =
+      administracionActual &&
+      Array.isArray(
+        administracionActual.perfiles
+      )
+        ? administracionActual.perfiles
+        : [];
+
+    perfiles
+      .filter(perfil =>
+        perfil.perfil !==
+        'ADMINISTRADOR'
+      )
+      .forEach(perfil => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          perfil.perfil;
+
+        option.textContent =
+          formatearTexto(
+            perfil.perfil
+          );
+
+        formProfileSource.appendChild(
+          option
+        );
+      });
+
+    profileModal.hidden = false;
+    formProfileName.focus();
+  }
+
+  function cerrarFormularioPerfil() {
+    profileModal.hidden = true;
+    profileFormMessage.textContent = '';
+  }
+
+  async function crearPerfilAdministracion(
+    event
+  ) {
+    event.preventDefault();
+    profileFormMessage.textContent = '';
+
+    const nombre =
+      formProfileName.value.trim();
+
+    if (!nombre) {
+      profileFormMessage.textContent =
+        'Ingresa el nombre del perfil.';
+      return;
+    }
+
+    saveProfileButton.disabled = true;
+    saveProfileButton.textContent = 'Creando…';
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'crear_perfil',
+          token:
+            auth.token,
+          perfil:
+            nombre,
+          perfilOrigen:
+            formProfileSource.value,
+          estadoPerfil:
+            formProfileState.value
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo crear el perfil.'
+        );
+      }
+
+      administracionPerfilSeleccionado =
+        respuesta.perfil;
+
+      cerrarFormularioPerfil();
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarAdministracion();
+
+    } catch (error) {
+      profileFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveProfileButton.disabled = false;
+      saveProfileButton.textContent = 'Crear perfil';
+    }
+  }
+
+  function actualizarPestanasAdministracion() {
+    administrationTabButtons.forEach(button => {
+      button.classList.toggle(
+        'is-active',
+        String(
+          button.dataset.administrationTab || ''
+        ).toUpperCase() ===
+          administracionPestanaActiva
+      );
+    });
+
+    administrationPermissionsPanel.hidden =
+      administracionPestanaActiva !==
+      'PERMISOS';
+
+    administrationDiagnosticsPanel.hidden =
+      administracionPestanaActiva !==
+      'DIAGNOSTICO';
+  }
+
+  function renderizarDiagnosticoAdministracion() {
+    const diagnostico =
+      administracionActual &&
+      administracionActual.diagnostico
+        ? administracionActual.diagnostico
+        : {};
+
+    administrationSystemName.textContent =
+      diagnostico.aplicacion || '—';
+
+    administrationSystemVersion.textContent =
+      diagnostico.version || '—';
+
+    administrationSystemDatabase.textContent =
+      diagnostico.nombreBase || '—';
+
+    administrationSystemTimezone.textContent =
+      diagnostico.zonaHoraria || '—';
+
+    administrationSystemSession.textContent =
+      diagnostico.duracionSesionHoras
+        ? `${diagnostico.duracionSesionHoras} horas`
+        : '—';
+
+    administrationSheetsBody.innerHTML = '';
+
+    (
+      diagnostico.hojas || []
+    ).forEach(item => {
+      const fila =
+        document.createElement(
+          'tr'
+        );
+
+      fila.appendChild(
+        crearCelda(
+          item.hoja
+        )
+      );
+
+      const estado =
+        document.createElement(
+          'td'
+        );
+
+      estado.className =
+        item.existe
+          ? 'administration-status-ok'
+          : 'administration-status-error';
+
+      estado.textContent =
+        formatearTexto(
+          item.estado
+        );
+
+      fila.appendChild(
+        estado
+      );
+
+      fila.appendChild(
+        crearCelda(
+          String(
+            item.filas || 0
+          )
+        )
+      );
+
+      fila.appendChild(
+        crearCelda(
+          String(
+            item.columnas || 0
+          )
+        )
+      );
+
+      administrationSheetsBody.appendChild(
+        fila
+      );
+    });
+
+    administrationProfilesBody.innerHTML = '';
+
+    (
+      diagnostico.perfiles || []
+    ).forEach(item => {
+      const fila =
+        document.createElement(
+          'tr'
+        );
+
+      fila.appendChild(
+        crearCelda(
+          formatearTexto(
+            item.perfil
+          )
+        )
+      );
+
+      fila.appendChild(
+        crearCelda(
+          formatearTexto(
+            item.estadoPerfil
+          )
+        )
+      );
+
+      fila.appendChild(
+        crearCelda(
+          `${item.modulosRegistrados || 0}/${item.modulosEsperados || 0}`
+        )
+      );
+
+      fila.appendChild(
+        crearCelda(
+          String(
+            item.usuariosActivos || 0
+          )
+        )
+      );
+
+      const diagnosticoCelda =
+        document.createElement(
+          'td'
+        );
+
+      diagnosticoCelda.className =
+        item.completo
+          ? 'administration-status-ok'
+          : 'administration-status-error';
+
+      diagnosticoCelda.textContent =
+        item.completo
+          ? 'Completo'
+          : 'Faltan módulos';
+
+      fila.appendChild(
+        diagnosticoCelda
+      );
+
+      administrationProfilesBody.appendChild(
+        fila
+      );
+    });
+  }
+
   async function abrirReportes() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -2106,6 +3074,7 @@
 
   async function abrirAlertas() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -2724,6 +3693,7 @@
 
   async function abrirBajas() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     maintenanceView.hidden = true;
@@ -3823,6 +4793,7 @@
 
   async function abrirMantenimientos() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -5004,6 +5975,7 @@
 
   async function abrirInventarios() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -6528,6 +7500,7 @@
 
   async function abrirCargos() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -7865,6 +8838,7 @@
 
   async function abrirStockActual() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -8562,6 +9536,7 @@
 
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -10102,6 +11077,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -11103,6 +12079,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -11941,6 +12918,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -12612,6 +13590,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -13436,6 +14415,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -14111,6 +15091,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -14129,6 +15110,7 @@
   }
 
   function mostrarDashboard() {
+    administrationView.hidden = true;
     reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
@@ -14658,6 +15640,9 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    administracionActual = null;
+    administracionPerfilSeleccionado = '';
+    administracionPestanaActiva = 'PERMISOS';
     reporteActual = null;
     reporteVistaActiva = 'RESUMEN';
     alertas = [];

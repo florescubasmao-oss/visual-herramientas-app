@@ -2227,3 +2227,228 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.administration-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.administration-summary-card {
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.administration-summary-card span,
+.administration-summary-card strong {
+  display: block;
+}
+
+.administration-summary-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.administration-summary-card strong {
+  margin-top: 6px;
+  font-size: 1.55rem;
+}
+
+.administration-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.administration-tab {
+  min-height: 39px;
+  padding: 0 15px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.administration-tab.is-active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.administration-profile-toolbar {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.4fr) minmax(160px, 0.8fr) minmax(135px, 0.6fr) minmax(135px, 0.6fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.administration-profile-data {
+  min-height: 43px;
+  padding: 10px 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.administration-profile-data span,
+.administration-profile-data strong {
+  display: block;
+}
+
+.administration-profile-data span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.administration-profile-data strong {
+  margin-top: 4px;
+  font-size: 0.88rem;
+}
+
+.administration-protected-message {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.administration-permissions-table {
+  min-width: 1280px;
+}
+
+.administration-module-cell strong,
+.administration-module-cell small {
+  display: block;
+}
+
+.administration-module-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+.administration-permission-cell {
+  text-align: center;
+}
+
+.administration-permission-cell input {
+  width: 18px;
+  height: 18px;
+}
+
+.administration-permission-cell input:disabled {
+  opacity: 0.3;
+}
+
+.administration-scope-select {
+  min-width: 155px;
+}
+
+.administration-system-info {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.administration-system-info article {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.administration-system-info span,
+.administration-system-info strong {
+  display: block;
+}
+
+.administration-system-info span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.administration-system-info strong {
+  margin-top: 5px;
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.administration-diagnostic-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 16px;
+}
+
+.administration-card-heading {
+  margin-bottom: 14px;
+}
+
+.administration-card-heading h3 {
+  margin: 3px 0 0;
+  font-size: 1rem;
+}
+
+.administration-diagnostic-table {
+  min-width: 560px;
+}
+
+.administration-status-ok {
+  color: var(--success);
+  font-weight: 800;
+}
+
+.administration-status-error {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+@media (max-width: 1150px) {
+  .administration-profile-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .administration-system-info {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .administration-diagnostic-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .administration-summary-grid,
+  .administration-system-info {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .administration-profile-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .administration-summary-grid,
+  .administration-system-info {
+    grid-template-columns: 1fr;
+  }
+}

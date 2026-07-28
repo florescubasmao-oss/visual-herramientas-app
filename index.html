@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.16.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.17.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -283,6 +283,249 @@
 
 
 
+
+
+
+    <main id="administrationView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backAdministrationButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Configuración</p>
+            <h2>Administración</h2>
+            <p class="subtitle">
+              Perfiles, permisos por módulo y diagnóstico general del sistema.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="newProfileButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nuevo perfil
+          </button>
+
+          <button
+            id="refreshAdministrationButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="administration-summary-grid">
+        <article class="administration-summary-card">
+          <span>Perfiles</span>
+          <strong id="administrationSummaryProfiles">0</strong>
+        </article>
+
+        <article class="administration-summary-card">
+          <span>Módulos oficiales</span>
+          <strong id="administrationSummaryModules">0</strong>
+        </article>
+
+        <article class="administration-summary-card">
+          <span>Usuarios activos</span>
+          <strong id="administrationSummaryUsers">0</strong>
+        </article>
+
+        <article class="administration-summary-card">
+          <span>Hojas correctas</span>
+          <strong id="administrationSummarySheets">0/0</strong>
+        </article>
+      </section>
+
+      <nav class="administration-tabs" aria-label="Opciones de administración">
+        <button
+          class="administration-tab is-active"
+          type="button"
+          data-administration-tab="PERMISOS"
+        >
+          Perfiles y permisos
+        </button>
+
+        <button
+          class="administration-tab"
+          type="button"
+          data-administration-tab="DIAGNOSTICO"
+        >
+          Estado del sistema
+        </button>
+      </nav>
+
+      <section id="administrationPermissionsPanel">
+        <section class="filters-card administration-profile-toolbar">
+          <div class="field-group">
+            <label for="administrationProfileSelect">Perfil</label>
+            <select id="administrationProfileSelect"></select>
+          </div>
+
+          <div class="field-group">
+            <label for="administrationProfileState">Estado del perfil</label>
+            <select id="administrationProfileState">
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+
+          <div class="administration-profile-data">
+            <span>Usuarios activos</span>
+            <strong id="administrationProfileUsers">0</strong>
+          </div>
+
+          <div class="administration-profile-data">
+            <span>Cobertura</span>
+            <strong id="administrationProfileCoverage">0/16</strong>
+          </div>
+
+          <button
+            id="saveAdministrationPermissionsButton"
+            class="primary-button"
+            type="button"
+            hidden
+          >
+            Guardar permisos
+          </button>
+        </section>
+
+        <p
+          id="administrationProtectedMessage"
+          class="administration-protected-message"
+          hidden
+        >
+          El perfil ADMINISTRADOR está protegido. Sus permisos no se modifican desde la aplicación.
+        </p>
+
+        <section class="table-card">
+          <div id="administrationLoading" class="loading-state">
+            Selecciona Actualizar para cargar la administración.
+          </div>
+
+          <div class="table-scroll">
+            <table
+              id="administrationPermissionsTable"
+              class="data-table administration-permissions-table"
+              hidden
+            >
+              <thead>
+                <tr>
+                  <th>Módulo</th>
+                  <th>Ver</th>
+                  <th>Registrar</th>
+                  <th>Editar</th>
+                  <th>Aprobar</th>
+                  <th>Anular</th>
+                  <th>Descargar</th>
+                  <th>Administrar</th>
+                  <th>Alcance</th>
+                </tr>
+              </thead>
+
+              <tbody id="administrationPermissionsBody"></tbody>
+            </table>
+          </div>
+
+          <p
+            id="administrationPermissionsEmpty"
+            class="empty-state"
+            hidden
+          >
+            No existen perfiles configurados.
+          </p>
+        </section>
+      </section>
+
+      <section id="administrationDiagnosticsPanel" hidden>
+        <section class="administration-system-info">
+          <article>
+            <span>Aplicación</span>
+            <strong id="administrationSystemName">—</strong>
+          </article>
+
+          <article>
+            <span>Versión</span>
+            <strong id="administrationSystemVersion">—</strong>
+          </article>
+
+          <article>
+            <span>Base</span>
+            <strong id="administrationSystemDatabase">—</strong>
+          </article>
+
+          <article>
+            <span>Zona horaria</span>
+            <strong id="administrationSystemTimezone">—</strong>
+          </article>
+
+          <article>
+            <span>Duración de sesión</span>
+            <strong id="administrationSystemSession">—</strong>
+          </article>
+        </section>
+
+        <section class="administration-diagnostic-grid">
+          <article class="table-card">
+            <div class="administration-card-heading">
+              <div>
+                <p class="section-label">Base de datos</p>
+                <h3>Estado de hojas</h3>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="data-table administration-diagnostic-table">
+                <thead>
+                  <tr>
+                    <th>Hoja</th>
+                    <th>Estado</th>
+                    <th>Filas</th>
+                    <th>Columnas</th>
+                  </tr>
+                </thead>
+                <tbody id="administrationSheetsBody"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="table-card">
+            <div class="administration-card-heading">
+              <div>
+                <p class="section-label">Seguridad</p>
+                <h3>Cobertura de perfiles</h3>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="data-table administration-diagnostic-table">
+                <thead>
+                  <tr>
+                    <th>Perfil</th>
+                    <th>Estado</th>
+                    <th>Módulos</th>
+                    <th>Usuarios activos</th>
+                    <th>Diagnóstico</th>
+                  </tr>
+                </thead>
+                <tbody id="administrationProfilesBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </section>
+    </main>
 
     <main id="reportsView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -2150,6 +2393,84 @@
 
 
 
+
+
+  <div id="profileModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profileModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Seguridad</p>
+          <h2 id="profileModalTitle">Nuevo perfil</h2>
+        </div>
+
+        <button
+          id="closeProfileModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="profileForm" class="user-form">
+        <div class="field-group">
+          <label for="formProfileName">Nombre del perfil</label>
+          <input
+            id="formProfileName"
+            type="text"
+            placeholder="Ejemplo: AUDITOR_ZONA_NORTE"
+            maxlength="60"
+            required
+          >
+          <small>
+            Se guardará en mayúsculas y con guiones bajos.
+          </small>
+        </div>
+
+        <div class="field-group">
+          <label for="formProfileSource">Copiar permisos de</label>
+          <select id="formProfileSource">
+            <option value="">Perfil vacío</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="formProfileState">Estado inicial</label>
+          <select id="formProfileState">
+            <option value="INACTIVO">Inactivo</option>
+            <option value="ACTIVO">Activo</option>
+          </select>
+        </div>
+
+        <p id="profileFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelProfileFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveProfileButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Crear perfil
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="bajaModal" class="modal-backdrop" hidden>
     <section
       class="modal-card modal-card-extra-wide"
@@ -3569,7 +3890,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.16.0"></script>
-  <script src="js/app.js?v=0.16.0"></script>
+  <script src="js/config.js?v=0.17.0"></script>
+  <script src="js/app.js?v=0.17.0"></script>
 </body>
 </html>
