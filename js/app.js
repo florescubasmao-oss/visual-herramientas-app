@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const reportsView = document.getElementById('reportsView');
   const alertsView = document.getElementById('alertsView');
   const bajasView = document.getElementById('bajasView');
   const maintenanceView = document.getElementById('maintenanceView');
@@ -35,6 +36,28 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backReportsButton = document.getElementById('backReportsButton');
+  const downloadReportsButton = document.getElementById('downloadReportsButton');
+  const refreshReportsButton = document.getElementById('refreshReportsButton');
+  const reportSiteFilter = document.getElementById('reportSiteFilter');
+  const reportDateFrom = document.getElementById('reportDateFrom');
+  const reportDateTo = document.getElementById('reportDateTo');
+  const reportRangeLabel = document.getElementById('reportRangeLabel');
+  const reportKpiStock = document.getElementById('reportKpiStock');
+  const reportKpiUnitary = document.getElementById('reportKpiUnitary');
+  const reportKpiMovements = document.getElementById('reportKpiMovements');
+  const reportKpiObserved = document.getElementById('reportKpiObserved');
+  const reportKpiPending = document.getElementById('reportKpiPending');
+  const reportKpiCritical = document.getElementById('reportKpiCritical');
+  const reportKpiAssetValue = document.getElementById('reportKpiAssetValue');
+  const reportKpiOperationalCost = document.getElementById('reportKpiOperationalCost');
+  const reportsLoading = document.getElementById('reportsLoading');
+  const reportsTable = document.getElementById('reportsTable');
+  const reportsTableHead = document.getElementById('reportsTableHead');
+  const reportsTableBody = document.getElementById('reportsTableBody');
+  const reportsEmpty = document.getElementById('reportsEmpty');
+  const reportTabButtons = Array.from(document.querySelectorAll('[data-report-tab]'));
 
   const backAlertsButton = document.getElementById('backAlertsButton');
   const downloadAlertsButton = document.getElementById('downloadAlertsButton');
@@ -480,6 +503,9 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let reporteActual = null;
+  let reporteVistaActiva = 'RESUMEN';
+  let puedeDescargarReportes = false;
   let alertas = [];
   let alertasFiltradas = [];
   let puedeDescargarAlertas = false;
@@ -639,6 +665,26 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backReportsButton.addEventListener('click', mostrarDashboard);
+    refreshReportsButton.addEventListener('click', cargarReportes);
+    downloadReportsButton.addEventListener('click', descargarVistaReporte);
+
+    reportTabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        reporteVistaActiva =
+          String(
+            button.dataset.reportTab || 'RESUMEN'
+          ).toUpperCase();
+
+        actualizarPestanasReporte();
+        renderizarReporteActivo();
+      });
+    });
+
+    reportSiteFilter.addEventListener('change', cargarReportes);
+    reportDateFrom.addEventListener('change', validarRangoReportesFrontend);
+    reportDateTo.addEventListener('change', validarRangoReportesFrontend);
+
     backAlertsButton.addEventListener('click', mostrarDashboard);
     refreshAlertsButton.addEventListener('click', cargarAlertas);
     downloadAlertsButton.addEventListener('click', descargarAlertasCsv);
@@ -1191,6 +1237,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'REPORTES') {
+      abrirReportes();
+      return;
+    }
+
     if (modulo === 'ALERTAS') {
       abrirAlertas();
       return;
@@ -1272,8 +1323,790 @@
 
 
 
+
+  async function abrirReportes() {
+    dashboardView.hidden = true;
+    alertsView.hidden = true;
+    bajasView.hidden = true;
+    maintenanceView.hidden = true;
+    inventoriesView.hidden = true;
+    cargosView.hidden = true;
+    stockView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    reportsView.hidden = false;
+
+    prepararFechasReportes();
+    actualizarPestanasReporte();
+
+    await cargarReportes();
+  }
+
+  function prepararFechasReportes() {
+    const hoy =
+      new Date();
+
+    const hoyLocal =
+      new Date(
+        hoy.getTime() -
+        hoy.getTimezoneOffset() *
+        60000
+      );
+
+    const hoyIso =
+      hoyLocal
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    const primerDia =
+      `${hoyIso.slice(0, 7)}-01`;
+
+    if (!reportDateFrom.value) {
+      reportDateFrom.value =
+        primerDia;
+    }
+
+    if (!reportDateTo.value) {
+      reportDateTo.value =
+        hoyIso;
+    }
+  }
+
+  function validarRangoReportesFrontend() {
+    if (
+      reportDateFrom.value &&
+      reportDateTo.value &&
+      reportDateFrom.value >
+        reportDateTo.value
+    ) {
+      window.alert(
+        'La fecha inicial no puede ser posterior a la fecha final.'
+      );
+
+      return;
+    }
+
+    cargarReportes();
+  }
+
+  async function cargarReportes() {
+    reportsLoading.hidden = false;
+    reportsLoading.textContent = 'Consolidando información…';
+    reportsTable.hidden = true;
+    reportsEmpty.hidden = true;
+    refreshReportsButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_reportes',
+          token:
+            auth.token,
+          sede:
+            reportSiteFilter.value,
+          fechaDesde:
+            reportDateFrom.value,
+          fechaHasta:
+            reportDateTo.value
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo generar el reporte.'
+        );
+      }
+
+      reporteActual =
+        respuesta;
+
+      puedeDescargarReportes =
+        Boolean(
+          respuesta.puedeDescargar
+        );
+
+      downloadReportsButton.hidden =
+        !puedeDescargarReportes;
+
+      actualizarFiltrosReportes(
+        respuesta.filtros || {}
+      );
+
+      actualizarIndicadoresReportes();
+      renderizarReporteActivo();
+
+      reportsLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      reporteActual = null;
+      reportsLoading.hidden = false;
+      reportsLoading.textContent = error.message;
+      reportsTable.hidden = true;
+      reportsEmpty.hidden = true;
+
+    } finally {
+      refreshReportsButton.disabled = false;
+    }
+  }
+
+  function actualizarFiltrosReportes(
+    filtros
+  ) {
+    const sedeActual =
+      reportSiteFilter.value;
+
+    llenarSelectConTodos(
+      reportSiteFilter,
+      filtros.sedesVisibles || [],
+      'Todas'
+    );
+
+    if (
+      sedeActual &&
+      Array.from(
+        reportSiteFilter.options
+      ).some(option =>
+        option.value === sedeActual
+      )
+    ) {
+      reportSiteFilter.value =
+        sedeActual;
+
+    } else if (
+      filtros.sede
+    ) {
+      reportSiteFilter.value =
+        filtros.sede;
+    }
+
+    if (
+      filtros.fechaDesde
+    ) {
+      reportDateFrom.value =
+        filtros.fechaDesde;
+    }
+
+    if (
+      filtros.fechaHasta
+    ) {
+      reportDateTo.value =
+        filtros.fechaHasta;
+    }
+
+    reportRangeLabel.textContent =
+      `${formatearFechaIsoReporte(
+        reportDateFrom.value
+      )} al ${formatearFechaIsoReporte(
+        reportDateTo.value
+      )}`;
+  }
+
+  function formatearFechaIsoReporte(
+    valor
+  ) {
+    const partes =
+      String(
+        valor || ''
+      ).split('-');
+
+    if (
+      partes.length !== 3
+    ) {
+      return valor || '—';
+    }
+
+    return [
+      partes[2],
+      partes[1],
+      partes[0]
+    ].join('/');
+  }
+
+  function actualizarIndicadoresReportes() {
+    const resumen =
+      reporteActual &&
+      reporteActual.resumen
+        ? reporteActual.resumen
+        : {};
+
+    reportKpiStock.textContent =
+      formatearNumeroReporte(
+        resumen.registrosStock
+      );
+
+    reportKpiUnitary.textContent =
+      formatearNumeroReporte(
+        resumen.herramientasUnitarias
+      );
+
+    reportKpiMovements.textContent =
+      formatearNumeroReporte(
+        resumen.movimientos
+      );
+
+    reportKpiObserved.textContent =
+      formatearNumeroReporte(
+        resumen.movimientosObservados
+      );
+
+    reportKpiPending.textContent =
+      formatearNumeroReporte(
+        resumen.pendientes
+      );
+
+    reportKpiCritical.textContent =
+      formatearNumeroReporte(
+        resumen.alertasCriticas
+      );
+
+    reportKpiAssetValue.textContent =
+      formatearMonedaReporte(
+        resumen.valorHerramientas
+      );
+
+    reportKpiOperationalCost.textContent =
+      formatearMonedaReporte(
+        resumen.costoOperativo
+      );
+  }
+
+  function actualizarPestanasReporte() {
+    reportTabButtons.forEach(button => {
+      button.classList.toggle(
+        'is-active',
+        String(
+          button.dataset.reportTab || ''
+        ).toUpperCase() ===
+          reporteVistaActiva
+      );
+    });
+  }
+
+  function renderizarReporteActivo() {
+    reportsTableHead.innerHTML = '';
+    reportsTableBody.innerHTML = '';
+
+    if (!reporteActual) {
+      reportsTable.hidden = true;
+      reportsEmpty.hidden = true;
+      return;
+    }
+
+    const configuracion =
+      obtenerConfiguracionReporteActivo();
+
+    const filas =
+      configuracion.filas || [];
+
+    const filaEncabezado =
+      document.createElement(
+        'tr'
+      );
+
+    configuracion.columnas.forEach(columna => {
+      const th =
+        document.createElement(
+          'th'
+        );
+
+      th.textContent =
+        columna.etiqueta;
+
+      filaEncabezado.appendChild(
+        th
+      );
+    });
+
+    reportsTableHead.appendChild(
+      filaEncabezado
+    );
+
+    filas.forEach(fila => {
+      const tr =
+        document.createElement(
+          'tr'
+        );
+
+      configuracion.columnas.forEach(columna => {
+        tr.appendChild(
+          crearCeldaReporte(
+            fila,
+            columna
+          )
+        );
+      });
+
+      reportsTableBody.appendChild(
+        tr
+      );
+    });
+
+    reportsLoading.hidden = true;
+    reportsTable.hidden =
+      filas.length === 0;
+    reportsEmpty.hidden =
+      filas.length !== 0;
+  }
+
+  function obtenerConfiguracionReporteActivo() {
+    const configuraciones = {
+      RESUMEN: {
+        filas:
+          reporteActual.porSede || [],
+
+        columnas: [
+          {
+            campo: 'sede',
+            etiqueta: 'Sede',
+            tipo: 'texto-principal'
+          },
+          {
+            campo: 'registrosStock',
+            etiqueta: 'Registros stock',
+            tipo: 'numero'
+          },
+          {
+            campo: 'herramientasUnitarias',
+            etiqueta: 'Herramientas unitarias',
+            tipo: 'numero'
+          },
+          {
+            campo: 'cantidadStock',
+            etiqueta: 'Cantidad stock',
+            tipo: 'numero-decimal'
+          },
+          {
+            campo: 'movimientos',
+            etiqueta: 'Movimientos',
+            tipo: 'numero'
+          },
+          {
+            campo: 'movimientosObservados',
+            etiqueta: 'Observados',
+            tipo: 'numero-alerta'
+          },
+          {
+            campo: 'pendientes',
+            etiqueta: 'Pendientes',
+            tipo: 'numero-alerta'
+          },
+          {
+            campo: 'alertasCriticas',
+            etiqueta: 'Críticos',
+            tipo: 'numero-alerta'
+          },
+          {
+            campo: 'valorHerramientas',
+            etiqueta: 'Valor herramientas',
+            tipo: 'moneda'
+          },
+          {
+            campo: 'costoOperativo',
+            etiqueta: 'Costo operativo',
+            tipo: 'moneda'
+          }
+        ]
+      },
+
+      STOCK: {
+        filas:
+          reporteActual.stock
+            ? reporteActual.stock.detalle || []
+            : [],
+
+        columnas: [
+          {
+            campo: 'sede',
+            etiqueta: 'Sede',
+            tipo: 'texto-principal'
+          },
+          {
+            campo: 'tipoUbicacion',
+            etiqueta: 'Ubicación',
+            tipo: 'texto'
+          },
+          {
+            campo: 'categoria',
+            etiqueta: 'Categoría',
+            tipo: 'texto'
+          },
+          {
+            campo: 'estadoStock',
+            etiqueta: 'Estado',
+            tipo: 'texto'
+          },
+          {
+            campo: 'registros',
+            etiqueta: 'Registros',
+            tipo: 'numero'
+          },
+          {
+            campo: 'herramientasUnitarias',
+            etiqueta: 'Unitarias',
+            tipo: 'numero'
+          },
+          {
+            campo: 'cantidadTotal',
+            etiqueta: 'Cantidad',
+            tipo: 'numero-decimal'
+          },
+          {
+            campo: 'valorCompra',
+            etiqueta: 'Valor compra',
+            tipo: 'moneda'
+          }
+        ]
+      },
+
+      MOVIMIENTOS: {
+        filas:
+          reporteActual.movimientos
+            ? reporteActual.movimientos.detalle || []
+            : [],
+
+        columnas: [
+          {
+            campo: 'sede',
+            etiqueta: 'Sede',
+            tipo: 'texto-principal'
+          },
+          {
+            campo: 'tipoMovimiento',
+            etiqueta: 'Tipo de movimiento',
+            tipo: 'texto'
+          },
+          {
+            campo: 'estadoMovimiento',
+            etiqueta: 'Estado',
+            tipo: 'texto'
+          },
+          {
+            campo: 'registros',
+            etiqueta: 'Registros',
+            tipo: 'numero'
+          },
+          {
+            campo: 'unitarios',
+            etiqueta: 'Unitarios',
+            tipo: 'numero'
+          },
+          {
+            campo: 'cantidadTotal',
+            etiqueta: 'Cantidad',
+            tipo: 'numero-decimal'
+          }
+        ]
+      },
+
+      CONTROL: {
+        filas:
+          reporteActual.control
+            ? reporteActual.control.detalle || []
+            : [],
+
+        columnas: [
+          {
+            campo: 'modulo',
+            etiqueta: 'Módulo',
+            tipo: 'texto-principal'
+          },
+          {
+            campo: 'sede',
+            etiqueta: 'Sede',
+            tipo: 'texto'
+          },
+          {
+            campo: 'estado',
+            etiqueta: 'Estado / prioridad',
+            tipo: 'texto'
+          },
+          {
+            campo: 'cantidad',
+            etiqueta: 'Registros',
+            tipo: 'numero'
+          },
+          {
+            campo: 'pendientes',
+            etiqueta: 'Pendientes',
+            tipo: 'numero-alerta'
+          },
+          {
+            campo: 'diferencias',
+            etiqueta: 'Diferencias',
+            tipo: 'numero-alerta'
+          },
+          {
+            campo: 'vencidos',
+            etiqueta: 'Vencidos',
+            tipo: 'numero-alerta'
+          },
+          {
+            campo: 'criticos',
+            etiqueta: 'Críticos',
+            tipo: 'numero-alerta'
+          },
+          {
+            campo: 'valor',
+            etiqueta: 'Valor / costo',
+            tipo: 'moneda'
+          },
+          {
+            campo: 'observacion',
+            etiqueta: 'Observación',
+            tipo: 'texto'
+          }
+        ]
+      },
+
+      COSTOS: {
+        filas:
+          reporteActual.costos
+            ? reporteActual.costos.detalle || []
+            : [],
+
+        columnas: [
+          {
+            campo: 'sede',
+            etiqueta: 'Sede',
+            tipo: 'texto-principal'
+          },
+          {
+            campo: 'valorHerramientas',
+            etiqueta: 'Valor herramientas',
+            tipo: 'moneda'
+          },
+          {
+            campo: 'costoMantenimientoEstimado',
+            etiqueta: 'Mantenimiento estimado',
+            tipo: 'moneda'
+          },
+          {
+            campo: 'costoMantenimientoReal',
+            etiqueta: 'Mantenimiento real',
+            tipo: 'moneda'
+          },
+          {
+            campo: 'valorBajas',
+            etiqueta: 'Valor de bajas',
+            tipo: 'moneda'
+          },
+          {
+            campo: 'costoOperativo',
+            etiqueta: 'Costo operativo',
+            tipo: 'moneda'
+          }
+        ]
+      }
+    };
+
+    return (
+      configuraciones[
+        reporteVistaActiva
+      ] ||
+      configuraciones.RESUMEN
+    );
+  }
+
+  function crearCeldaReporte(
+    fila,
+    columna
+  ) {
+    const td =
+      document.createElement(
+        'td'
+      );
+
+    const valor =
+      fila[
+        columna.campo
+      ];
+
+    if (
+      columna.tipo ===
+        'texto-principal'
+    ) {
+      td.className =
+        'report-primary-cell';
+
+      td.innerHTML =
+        `<strong>${escaparHtml(
+          formatearTexto(
+            valor || 'Sin dato'
+          )
+        )}</strong>`;
+
+      return td;
+    }
+
+    if (
+      columna.tipo ===
+        'numero' ||
+      columna.tipo ===
+        'numero-decimal' ||
+      columna.tipo ===
+        'numero-alerta'
+    ) {
+      td.className =
+        'report-number';
+
+      if (
+        columna.tipo ===
+          'numero-alerta' &&
+        Number(
+          valor || 0
+        ) > 0
+      ) {
+        td.classList.add(
+          'report-warning-number'
+        );
+      }
+
+      td.textContent =
+        columna.tipo ===
+          'numero'
+          ? formatearNumeroReporte(
+              valor
+            )
+          : formatearDecimalReporte(
+              valor
+            );
+
+      return td;
+    }
+
+    if (
+      columna.tipo ===
+        'moneda'
+    ) {
+      td.className =
+        'report-money';
+
+      td.textContent =
+        formatearMonedaReporte(
+          valor
+        );
+
+      return td;
+    }
+
+    td.textContent =
+      formatearTexto(
+        valor || '—'
+      );
+
+    return td;
+  }
+
+  function formatearNumeroReporte(
+    valor
+  ) {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    return numero.toLocaleString(
+      'es-PE',
+      {
+        maximumFractionDigits: 0
+      }
+    );
+  }
+
+  function formatearDecimalReporte(
+    valor
+  ) {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    return numero.toLocaleString(
+      'es-PE',
+      {
+        minimumFractionDigits:
+          Number.isInteger(numero)
+            ? 0
+            : 2,
+        maximumFractionDigits: 2
+      }
+    );
+  }
+
+  function formatearMonedaReporte(
+    valor
+  ) {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    return numero.toLocaleString(
+      'es-PE',
+      {
+        style: 'currency',
+        currency: 'PEN',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }
+    );
+  }
+
+  function descargarVistaReporte() {
+    if (
+      !puedeDescargarReportes ||
+      !reporteActual
+    ) {
+      window.alert(
+        'No tienes permiso para descargar reportes.'
+      );
+
+      return;
+    }
+
+    const configuracion =
+      obtenerConfiguracionReporteActivo();
+
+    const encabezados =
+      configuracion.columnas.map(
+        columna =>
+          columna.etiqueta
+            .toUpperCase()
+            .replace(
+              /\s+/g,
+              '_'
+            )
+      );
+
+    const filas =
+      configuracion.filas.map(fila =>
+        configuracion.columnas.map(columna =>
+          fila[
+            columna.campo
+          ] ?? ''
+        )
+      );
+
+    descargarCsvGenerico(
+      `reporte_${reporteVistaActiva.toLowerCase()}_${reportDateFrom.value}_${reportDateTo.value}.csv`,
+      encabezados,
+      filas
+    );
+  }
+
   async function abrirAlertas() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -1891,6 +2724,7 @@
 
   async function abrirBajas() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     maintenanceView.hidden = true;
     inventoriesView.hidden = true;
@@ -2989,6 +3823,7 @@
 
   async function abrirMantenimientos() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     inventoriesView.hidden = true;
@@ -4169,6 +5004,7 @@
 
   async function abrirInventarios() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -5692,6 +6528,7 @@
 
   async function abrirCargos() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -7028,6 +7865,7 @@
 
   async function abrirStockActual() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -7724,6 +8562,7 @@
 
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -9263,6 +10102,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -10263,6 +11103,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -11100,6 +11941,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -11770,6 +12612,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -12593,6 +13436,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -13267,6 +14111,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -13284,6 +14129,7 @@
   }
 
   function mostrarDashboard() {
+    reportsView.hidden = true;
     alertsView.hidden = true;
     bajasView.hidden = true;
     maintenanceView.hidden = true;
@@ -13812,6 +14658,8 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    reporteActual = null;
+    reporteVistaActiva = 'RESUMEN';
     alertas = [];
     alertasFiltradas = [];
     bajas = [];

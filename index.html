@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.15.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.16.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -281,6 +281,180 @@
 
 
 
+
+
+
+    <main id="reportsView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backReportsButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Análisis</p>
+            <h2>Reportes</h2>
+            <p class="subtitle">
+              Consolidado ejecutivo de stock, movimientos, controles y costos.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="downloadReportsButton"
+            class="secondary-button"
+            type="button"
+            hidden
+          >
+            Descargar vista CSV
+          </button>
+
+          <button
+            id="refreshReportsButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="filters-card">
+        <div class="report-filters-grid">
+          <div class="field-group">
+            <label for="reportSiteFilter">Sede</label>
+            <select id="reportSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="reportDateFrom">Desde</label>
+            <input id="reportDateFrom" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="reportDateTo">Hasta</label>
+            <input id="reportDateTo" type="date">
+          </div>
+
+          <div class="report-range-note">
+            <span>Rango aplicado</span>
+            <strong id="reportRangeLabel">—</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="reportKpiGrid" class="report-kpi-grid">
+        <article class="report-kpi-card">
+          <span>Registros de stock</span>
+          <strong id="reportKpiStock">0</strong>
+        </article>
+
+        <article class="report-kpi-card">
+          <span>Herramientas unitarias</span>
+          <strong id="reportKpiUnitary">0</strong>
+        </article>
+
+        <article class="report-kpi-card">
+          <span>Movimientos del rango</span>
+          <strong id="reportKpiMovements">0</strong>
+        </article>
+
+        <article class="report-kpi-card">
+          <span>Movimientos observados</span>
+          <strong id="reportKpiObserved">0</strong>
+        </article>
+
+        <article class="report-kpi-card">
+          <span>Pendientes operativos</span>
+          <strong id="reportKpiPending">0</strong>
+        </article>
+
+        <article class="report-kpi-card">
+          <span>Alertas críticas</span>
+          <strong id="reportKpiCritical">0</strong>
+        </article>
+
+        <article class="report-kpi-card">
+          <span>Valor de herramientas</span>
+          <strong id="reportKpiAssetValue">S/ 0.00</strong>
+        </article>
+
+        <article class="report-kpi-card">
+          <span>Costo operativo</span>
+          <strong id="reportKpiOperationalCost">S/ 0.00</strong>
+        </article>
+      </section>
+
+      <nav class="report-tabs" aria-label="Vistas del reporte">
+        <button
+          class="report-tab is-active"
+          type="button"
+          data-report-tab="RESUMEN"
+        >
+          Resumen por sede
+        </button>
+
+        <button
+          class="report-tab"
+          type="button"
+          data-report-tab="STOCK"
+        >
+          Stock
+        </button>
+
+        <button
+          class="report-tab"
+          type="button"
+          data-report-tab="MOVIMIENTOS"
+        >
+          Movimientos
+        </button>
+
+        <button
+          class="report-tab"
+          type="button"
+          data-report-tab="CONTROL"
+        >
+          Control operativo
+        </button>
+
+        <button
+          class="report-tab"
+          type="button"
+          data-report-tab="COSTOS"
+        >
+          Costos
+        </button>
+      </nav>
+
+      <section class="table-card report-table-card">
+        <div id="reportsLoading" class="loading-state">
+          Selecciona Actualizar para generar el reporte.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="reportsTable"
+            class="data-table reports-table"
+            hidden
+          >
+            <thead id="reportsTableHead"></thead>
+            <tbody id="reportsTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="reportsEmpty" class="empty-state" hidden>
+          No existe información para los filtros seleccionados.
+        </p>
+      </section>
+    </main>
 
     <main id="alertsView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -3395,7 +3569,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.15.0"></script>
-  <script src="js/app.js?v=0.15.0"></script>
+  <script src="js/config.js?v=0.16.0"></script>
+  <script src="js/app.js?v=0.16.0"></script>
 </body>
 </html>
