@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const movementsView = document.getElementById('movementsView');
   const toolsView = document.getElementById('toolsView');
   const catalogView = document.getElementById('catalogView');
   const warehousesView = document.getElementById('warehousesView');
@@ -28,6 +29,67 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backMovementsButton = document.getElementById('backMovementsButton');
+  const newMovementButton = document.getElementById('newMovementButton');
+  const refreshMovementsButton = document.getElementById('refreshMovementsButton');
+  const movementSearch = document.getElementById('movementSearch');
+  const movementTypeFilter = document.getElementById('movementTypeFilter');
+  const movementSiteFilter = document.getElementById('movementSiteFilter');
+  const movementStateFilter = document.getElementById('movementStateFilter');
+  const movementDateFrom = document.getElementById('movementDateFrom');
+  const movementDateTo = document.getElementById('movementDateTo');
+  const movementsLoading = document.getElementById('movementsLoading');
+  const movementsTable = document.getElementById('movementsTable');
+  const movementsTableBody = document.getElementById('movementsTableBody');
+  const movementsEmpty = document.getElementById('movementsEmpty');
+  const movementSummaryTotal = document.getElementById('movementSummaryTotal');
+  const movementSummaryConfirmed = document.getElementById('movementSummaryConfirmed');
+  const movementSummaryUnitary = document.getElementById('movementSummaryUnitary');
+  const movementSummaryQuantity = document.getElementById('movementSummaryQuantity');
+
+  const movementModal = document.getElementById('movementModal');
+  const closeMovementModalButton = document.getElementById('closeMovementModalButton');
+  const cancelMovementFormButton = document.getElementById('cancelMovementFormButton');
+  const movementForm = document.getElementById('movementForm');
+  const formMovementDate = document.getElementById('formMovementDate');
+  const formMovementTime = document.getElementById('formMovementTime');
+  const formMovementType = document.getElementById('formMovementType');
+  const formMovementReason = document.getElementById('formMovementReason');
+  const formMovementArticleType = document.getElementById('formMovementArticleType');
+  const movementToolGroup = document.getElementById('movementToolGroup');
+  const formMovementTool = document.getElementById('formMovementTool');
+  const formMovementQuantity = document.getElementById('formMovementQuantity');
+  const formMovementUnit = document.getElementById('formMovementUnit');
+
+  const formMovementOriginType = document.getElementById('formMovementOriginType');
+  const formMovementOriginSite = document.getElementById('formMovementOriginSite');
+  const movementOriginEntityGroup = document.getElementById('movementOriginEntityGroup');
+  const movementOriginEntityLabel = document.getElementById('movementOriginEntityLabel');
+  const formMovementOriginEntity = document.getElementById('formMovementOriginEntity');
+  const movementOriginResponsibleGroup = document.getElementById('movementOriginResponsibleGroup');
+  const formMovementOriginResponsible = document.getElementById('formMovementOriginResponsible');
+  const movementOriginExternalGroup = document.getElementById('movementOriginExternalGroup');
+  const formMovementOriginExternal = document.getElementById('formMovementOriginExternal');
+
+  const formMovementDestinationType = document.getElementById('formMovementDestinationType');
+  const formMovementDestinationSite = document.getElementById('formMovementDestinationSite');
+  const movementDestinationEntityGroup = document.getElementById('movementDestinationEntityGroup');
+  const movementDestinationEntityLabel = document.getElementById('movementDestinationEntityLabel');
+  const formMovementDestinationEntity = document.getElementById('formMovementDestinationEntity');
+  const movementDestinationResponsibleGroup = document.getElementById('movementDestinationResponsibleGroup');
+  const formMovementDestinationResponsible = document.getElementById('formMovementDestinationResponsible');
+  const movementDestinationExternalGroup = document.getElementById('movementDestinationExternalGroup');
+  const formMovementDestinationExternal = document.getElementById('formMovementDestinationExternal');
+
+  const movementProvidersList = document.getElementById('movementProvidersList');
+  const formMovementDeliver = document.getElementById('formMovementDeliver');
+  const formMovementReceive = document.getElementById('formMovementReceive');
+  const formMovementCargo = document.getElementById('formMovementCargo');
+  const formMovementEvidence = document.getElementById('formMovementEvidence');
+  const formMovementNotes = document.getElementById('formMovementNotes');
+  const movementFormMessage = document.getElementById('movementFormMessage');
+  const saveMovementButton = document.getElementById('saveMovementButton');
 
   const backToolsButton = document.getElementById('backToolsButton');
   const newToolButton = document.getElementById('newToolButton');
@@ -216,6 +278,23 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let movimientos = [];
+  let puedeRegistrarMovimientos = false;
+  let catalogosMovimientos = {
+    tiposMovimiento: [],
+    motivos: [],
+    estados: [],
+    ubicaciones: [],
+    reglas: {},
+    sedes: [],
+    tiposArticulo: [],
+    herramientas: [],
+    almacenes: [],
+    cuadrillas: [],
+    tecnicos: [],
+    supervisores: [],
+    proveedores: []
+  };
   let herramientas = [];
   let puedeRegistrarHerramientas = false;
   let puedeEditarHerramientas = false;
@@ -282,6 +361,53 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backMovementsButton.addEventListener('click', mostrarDashboard);
+    newMovementButton.addEventListener('click', abrirNuevoMovimiento);
+    refreshMovementsButton.addEventListener('click', cargarMovimientos);
+    closeMovementModalButton.addEventListener('click', cerrarFormularioMovimiento);
+    cancelMovementFormButton.addEventListener('click', cerrarFormularioMovimiento);
+    movementForm.addEventListener('submit', guardarMovimiento);
+    formMovementType.addEventListener('change', actualizarReglaMovimiento);
+    formMovementArticleType.addEventListener('change', actualizarArticuloMovimiento);
+
+    formMovementOriginType.addEventListener('change', () => actualizarUbicacionMovimiento('origen'));
+    formMovementOriginSite.addEventListener('change', () => actualizarUbicacionMovimiento('origen'));
+    formMovementOriginEntity.addEventListener('change', () => actualizarResponsableUbicacionMovimiento('origen'));
+    formMovementOriginResponsible.addEventListener('change', actualizarResponsablesEntregaRecepcion);
+    formMovementOriginExternal.addEventListener('input', actualizarResponsablesEntregaRecepcion);
+
+    formMovementDestinationType.addEventListener('change', () => actualizarUbicacionMovimiento('destino'));
+    formMovementDestinationSite.addEventListener('change', () => actualizarUbicacionMovimiento('destino'));
+    formMovementDestinationEntity.addEventListener('change', () => actualizarResponsableUbicacionMovimiento('destino'));
+    formMovementDestinationResponsible.addEventListener('change', actualizarResponsablesEntregaRecepcion);
+    formMovementDestinationExternal.addEventListener('input', actualizarResponsablesEntregaRecepcion);
+
+    formMovementDeliver.addEventListener('input', () => {
+      formMovementDeliver.dataset.auto = '';
+    });
+
+    formMovementReceive.addEventListener('input', () => {
+      formMovementReceive.dataset.auto = '';
+    });
+
+    movementModal.addEventListener('click', (event) => {
+      if (event.target === movementModal) {
+        cerrarFormularioMovimiento();
+      }
+    });
+
+    [
+      movementSearch,
+      movementTypeFilter,
+      movementSiteFilter,
+      movementStateFilter,
+      movementDateFrom,
+      movementDateTo
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarMovimientos);
+      control.addEventListener('change', renderizarMovimientos);
+    });
+
     backToolsButton.addEventListener('click', mostrarDashboard);
     newToolButton.addEventListener('click', abrirNuevaHerramienta);
     refreshToolsButton.addEventListener('click', cargarHerramientas);
@@ -648,6 +774,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'MOVIMIENTOS') {
+      abrirMovimientos();
+      return;
+    }
+
     if (modulo === 'HERRAMIENTAS') {
       abrirHerramientas();
       return;
@@ -687,8 +818,1543 @@
 
 
 
+
+  async function abrirMovimientos() {
+    dashboardView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    movementsView.hidden = false;
+
+    await cargarMovimientos();
+  }
+
+  async function cargarMovimientos() {
+    movementsLoading.hidden = false;
+    movementsLoading.textContent = 'Cargando movimientos…';
+    movementsTable.hidden = true;
+    movementsEmpty.hidden = true;
+    refreshMovementsButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_movimientos',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar los movimientos.'
+        );
+      }
+
+      movimientos =
+        Array.isArray(
+          respuesta.movimientos
+        )
+          ? respuesta.movimientos
+          : [];
+
+      puedeRegistrarMovimientos =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      catalogosMovimientos =
+        respuesta.catalogos || {
+          tiposMovimiento: [],
+          motivos: [],
+          estados: [],
+          ubicaciones: [],
+          reglas: {},
+          sedes: [],
+          tiposArticulo: [],
+          herramientas: [],
+          almacenes: [],
+          cuadrillas: [],
+          tecnicos: [],
+          supervisores: [],
+          proveedores: []
+        };
+
+      newMovementButton.hidden =
+        !puedeRegistrarMovimientos;
+
+      actualizarCatalogosMovimientos();
+      renderizarMovimientos();
+      movementsLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      movementsLoading.hidden = false;
+      movementsLoading.textContent = error.message;
+      movementsTable.hidden = true;
+
+    } finally {
+      refreshMovementsButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosMovimientos() {
+    llenarSelectObjetosMovimiento(
+      movementTypeFilter,
+      catalogosMovimientos.tiposMovimiento || [],
+      'Todos'
+    );
+
+    llenarSelectConTodos(
+      movementSiteFilter,
+      catalogosMovimientos.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectObjetosMovimiento(
+      movementStateFilter,
+      catalogosMovimientos.estados || [],
+      'Todos'
+    );
+
+    llenarSelectObjetosMovimiento(
+      formMovementType,
+      catalogosMovimientos.tiposMovimiento || []
+    );
+
+    llenarSelectTiposArticuloMovimiento();
+
+    movementProvidersList.innerHTML = '';
+
+    (
+      catalogosMovimientos.proveedores || []
+    ).forEach(proveedor => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        proveedor;
+
+      movementProvidersList.appendChild(
+        option
+      );
+    });
+  }
+
+  function llenarSelectObjetosMovimiento(
+    select,
+    valores,
+    etiquetaTodos
+  ) {
+    const actual =
+      select.value;
+
+    select.innerHTML = '';
+
+    if (
+      etiquetaTodos !==
+      undefined
+    ) {
+      const optionTodos =
+        document.createElement(
+          'option'
+        );
+
+      optionTodos.value = '';
+      optionTodos.textContent =
+        etiquetaTodos;
+
+      select.appendChild(
+        optionTodos
+      );
+    }
+
+    valores.forEach(item => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        item.valor ||
+        item.value ||
+        '';
+
+      option.textContent =
+        formatearTexto(
+          item.valor ||
+          item.value ||
+          ''
+        );
+
+      if (
+        item.descripcion
+      ) {
+        option.title =
+          item.descripcion;
+      }
+
+      select.appendChild(
+        option
+      );
+    });
+
+    if (
+      actual &&
+      Array.from(
+        select.options
+      ).some(option =>
+        option.value === actual
+      )
+    ) {
+      select.value =
+        actual;
+    }
+  }
+
+  function llenarSelectTiposArticuloMovimiento() {
+    const actual =
+      formMovementArticleType.value;
+
+    formMovementArticleType.innerHTML = '';
+
+    (
+      catalogosMovimientos.tiposArticulo || []
+    )
+      .slice()
+      .sort((a, b) =>
+        String(
+          a.tipoHerramienta || ''
+        ).localeCompare(
+          String(
+            b.tipoHerramienta || ''
+          ),
+          'es'
+        )
+      )
+      .forEach(tipo => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          tipo.idTipo;
+
+        option.textContent =
+          `${tipo.tipoHerramienta} · ${formatearTexto(
+            tipo.tipoControl
+          )}`;
+
+        option.dataset.control =
+          tipo.tipoControl;
+
+        option.dataset.unidad =
+          tipo.unidadMedida;
+
+        formMovementArticleType.appendChild(
+          option
+        );
+      });
+
+    if (
+      actual &&
+      Array.from(
+        formMovementArticleType.options
+      ).some(option =>
+        option.value === actual
+      )
+    ) {
+      formMovementArticleType.value =
+        actual;
+    }
+  }
+
+  function renderizarMovimientos() {
+    const texto =
+      normalizarBusqueda(
+        movementSearch.value
+      );
+
+    const tipo =
+      String(
+        movementTypeFilter.value || ''
+      ).toUpperCase();
+
+    const sede =
+      String(
+        movementSiteFilter.value || ''
+      ).toUpperCase();
+
+    const estado =
+      String(
+        movementStateFilter.value || ''
+      ).toUpperCase();
+
+    const desde =
+      movementDateFrom.value;
+
+    const hasta =
+      movementDateTo.value;
+
+    const filtrados =
+      movimientos.filter(movimiento => {
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            movimiento.idMovimiento,
+            movimiento.tipoMovimiento,
+            movimiento.tipoHerramienta,
+            movimiento.codigoInterno,
+            movimiento.origenResponsable,
+            movimiento.destinoResponsable,
+            movimiento.numeroCargo,
+            movimiento.responsableEntrega,
+            movimiento.responsableRecibe
+          ].join(' ')).includes(
+            texto
+          );
+
+        const coincideTipo =
+          !tipo ||
+          movimiento.tipoMovimiento ===
+            tipo;
+
+        const coincideSede =
+          !sede ||
+          movimiento.origenSede === sede ||
+          movimiento.destinoSede === sede;
+
+        const coincideEstado =
+          !estado ||
+          movimiento.estadoMovimiento ===
+            estado;
+
+        const fechaIso =
+          convertirFechaMovimientoIso(
+            movimiento.fecha
+          );
+
+        const coincideDesde =
+          !desde ||
+          !fechaIso ||
+          fechaIso >= desde;
+
+        const coincideHasta =
+          !hasta ||
+          !fechaIso ||
+          fechaIso <= hasta;
+
+        return (
+          coincideTexto &&
+          coincideTipo &&
+          coincideSede &&
+          coincideEstado &&
+          coincideDesde &&
+          coincideHasta
+        );
+      });
+
+    movementsTableBody.innerHTML = '';
+
+    filtrados.forEach(movimiento => {
+      movementsTableBody.appendChild(
+        crearFilaMovimiento(
+          movimiento
+        )
+      );
+    });
+
+    movementSummaryTotal.textContent =
+      String(
+        filtrados.length
+      );
+
+    movementSummaryConfirmed.textContent =
+      String(
+        filtrados.filter(item =>
+          item.estadoMovimiento ===
+          'CONFIRMADO'
+        ).length
+      );
+
+    movementSummaryUnitary.textContent =
+      String(
+        filtrados.filter(item =>
+          item.tipoControl ===
+          'UNITARIO'
+        ).length
+      );
+
+    movementSummaryQuantity.textContent =
+      String(
+        filtrados.filter(item =>
+          item.tipoControl ===
+          'CANTIDAD'
+        ).length
+      );
+
+    movementsLoading.hidden = true;
+    movementsTable.hidden =
+      filtrados.length === 0;
+    movementsEmpty.hidden =
+      filtrados.length !== 0;
+  }
+
+  function crearFilaMovimiento(
+    movimiento
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const celdaMovimiento =
+      document.createElement(
+        'td'
+      );
+
+    celdaMovimiento.className =
+      'movement-main-cell';
+
+    celdaMovimiento.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          movimiento.tipoMovimiento
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          movimiento.fecha,
+          movimiento.hora
+        ].filter(Boolean).join(' · ')
+      )}</small>` +
+      `<span class="movement-code">${escaparHtml(
+        movimiento.idMovimiento
+      )}</span>`;
+
+    fila.appendChild(
+      celdaMovimiento
+    );
+
+    const celdaArticulo =
+      document.createElement(
+        'td'
+      );
+
+    celdaArticulo.className =
+      'movement-article-cell';
+
+    celdaArticulo.innerHTML =
+      `<strong>${escaparHtml(
+        movimiento.tipoHerramienta ||
+        'Sin artículo'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          formatearTexto(
+            movimiento.tipoControl
+          ),
+          movimiento.codigoInterno
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      celdaArticulo
+    );
+
+    fila.appendChild(
+      crearCeldaUbicacionMovimiento(
+        movimiento.origenTipo,
+        movimiento.origenSede,
+        movimiento.origenCuadrilla,
+        movimiento.origenResponsable
+      )
+    );
+
+    fila.appendChild(
+      crearCeldaUbicacionMovimiento(
+        movimiento.destinoTipo,
+        movimiento.destinoSede,
+        movimiento.destinoCuadrilla,
+        movimiento.destinoResponsable
+      )
+    );
+
+    fila.appendChild(
+      crearCelda(
+        `${formatearCantidadMovimiento(
+          movimiento.cantidad
+        )} ${formatearTexto(
+          movimiento.unidadMedida
+        )}`
+      )
+    );
+
+    const celdaDetalle =
+      document.createElement(
+        'td'
+      );
+
+    celdaDetalle.className =
+      'movement-detail-cell';
+
+    celdaDetalle.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          movimiento.motivo
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        movimiento.numeroCargo
+          ? `Cargo: ${movimiento.numeroCargo}`
+          : 'Sin cargo'
+      )}</small>`;
+
+    if (
+      /^https?:\/\//i.test(
+        movimiento.evidenciaUrl || ''
+      )
+    ) {
+      const enlace =
+        document.createElement(
+          'a'
+        );
+
+      enlace.className =
+        'movement-evidence-link';
+
+      enlace.href =
+        movimiento.evidenciaUrl;
+
+      enlace.target =
+        '_blank';
+
+      enlace.rel =
+        'noopener noreferrer';
+
+      enlace.textContent =
+        'Ver evidencia';
+
+      celdaDetalle.appendChild(
+        enlace
+      );
+    }
+
+    fila.appendChild(
+      celdaDetalle
+    );
+
+    const celdaEstado =
+      document.createElement(
+        'td'
+      );
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    const estado =
+      movimiento.estadoMovimiento ||
+      'REGISTRADO';
+
+    insignia.className =
+      'status-badge ' +
+      (
+        estado === 'CONFIRMADO'
+          ? 'status-active'
+          : estado === 'ANULADO'
+            ? 'status-inactive'
+            : ''
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        estado
+      );
+
+    celdaEstado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      celdaEstado
+    );
+
+    const celdaRegistro =
+      document.createElement(
+        'td'
+      );
+
+    celdaRegistro.className =
+      'movement-detail-cell';
+
+    celdaRegistro.innerHTML =
+      `<strong>${escaparHtml(
+        movimiento.usuarioRegistra ||
+        'Sin usuario'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          movimiento.responsableEntrega,
+          movimiento.responsableRecibe
+        ].filter(Boolean).join(' → ')
+      )}</small>`;
+
+    fila.appendChild(
+      celdaRegistro
+    );
+
+    return fila;
+  }
+
+  function crearCeldaUbicacionMovimiento(
+    tipo,
+    sede,
+    cuadrilla,
+    responsable
+  ) {
+    const celda =
+      document.createElement(
+        'td'
+      );
+
+    celda.className =
+      'movement-location-cell';
+
+    celda.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          tipo
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          formatearTexto(
+            sede
+          ),
+          cuadrilla,
+          responsable
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    return celda;
+  }
+
+  function formatearCantidadMovimiento(
+    valor
+  ) {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    return numero.toLocaleString(
+      'es-PE',
+      {
+        minimumFractionDigits:
+          Number.isInteger(numero)
+            ? 0
+            : 2,
+        maximumFractionDigits: 2
+      }
+    );
+  }
+
+  function convertirFechaMovimientoIso(
+    valor
+  ) {
+    const texto =
+      String(
+        valor || ''
+      ).trim();
+
+    let coincidencia =
+      texto.match(
+        /^(\d{4})-(\d{2})-(\d{2})/
+      );
+
+    if (coincidencia) {
+      return (
+        coincidencia[1] +
+        '-' +
+        coincidencia[2] +
+        '-' +
+        coincidencia[3]
+      );
+    }
+
+    coincidencia =
+      texto.match(
+        /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/
+      );
+
+    if (!coincidencia) {
+      return '';
+    }
+
+    return (
+      coincidencia[3] +
+      '-' +
+      String(
+        coincidencia[2]
+      ).padStart(
+        2,
+        '0'
+      ) +
+      '-' +
+      String(
+        coincidencia[1]
+      ).padStart(
+        2,
+        '0'
+      )
+    );
+  }
+
+  function abrirNuevoMovimiento() {
+    movementForm.reset();
+    movementFormMessage.textContent = '';
+
+    const ahora =
+      new Date();
+
+    const fechaLocal =
+      new Date(
+        ahora.getTime() -
+        ahora.getTimezoneOffset() *
+        60000
+      );
+
+    formMovementDate.value =
+      fechaLocal
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    formMovementTime.value =
+      String(
+        ahora.getHours()
+      ).padStart(
+        2,
+        '0'
+      ) +
+      ':' +
+      String(
+        ahora.getMinutes()
+      ).padStart(
+        2,
+        '0'
+      );
+
+    actualizarCatalogosMovimientos();
+
+    if (
+      formMovementType.options.length
+    ) {
+      formMovementType.selectedIndex =
+        0;
+    }
+
+    if (
+      formMovementArticleType.options.length
+    ) {
+      formMovementArticleType.selectedIndex =
+        0;
+    }
+
+    actualizarReglaMovimiento();
+    actualizarArticuloMovimiento();
+
+    movementModal.hidden = false;
+    formMovementType.focus();
+  }
+
+  function actualizarReglaMovimiento() {
+    const tipo =
+      formMovementType.value;
+
+    const regla =
+      (
+        catalogosMovimientos.reglas || {}
+      )[tipo];
+
+    if (!regla) {
+      llenarSelectValoresMovimiento(
+        formMovementOriginType,
+        []
+      );
+
+      llenarSelectValoresMovimiento(
+        formMovementDestinationType,
+        []
+      );
+
+      llenarSelectValoresMovimiento(
+        formMovementReason,
+        []
+      );
+
+      return;
+    }
+
+    llenarSelectValoresMovimiento(
+      formMovementOriginType,
+      regla.origenTipos || []
+    );
+
+    llenarSelectValoresMovimiento(
+      formMovementDestinationType,
+      regla.destinoTipos || []
+    );
+
+    llenarSelectValoresMovimiento(
+      formMovementReason,
+      regla.motivos || []
+    );
+
+    actualizarUbicacionMovimiento(
+      'origen'
+    );
+
+    actualizarUbicacionMovimiento(
+      'destino'
+    );
+  }
+
+  function llenarSelectValoresMovimiento(
+    select,
+    valores
+  ) {
+    const actual =
+      select.value;
+
+    select.innerHTML = '';
+
+    valores.forEach(valor => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        valor;
+
+      option.textContent =
+        formatearTexto(
+          valor
+        );
+
+      select.appendChild(
+        option
+      );
+    });
+
+    if (
+      actual &&
+      Array.from(
+        select.options
+      ).some(option =>
+        option.value === actual
+      )
+    ) {
+      select.value =
+        actual;
+    } else if (
+      select.options.length
+    ) {
+      select.selectedIndex =
+        0;
+    }
+  }
+
+  function actualizarArticuloMovimiento() {
+    const tipo =
+      (
+        catalogosMovimientos.tiposArticulo || []
+      ).find(item =>
+        item.idTipo ===
+        formMovementArticleType.value
+      );
+
+    if (!tipo) {
+      movementToolGroup.hidden = true;
+      formMovementQuantity.value = '';
+      formMovementUnit.value = '';
+      return;
+    }
+
+    const esUnitario =
+      tipo.tipoControl ===
+      'UNITARIO';
+
+    movementToolGroup.hidden =
+      !esUnitario;
+
+    formMovementQuantity.disabled =
+      esUnitario;
+
+    formMovementQuantity.value =
+      esUnitario
+        ? '1'
+        : (
+            formMovementQuantity.value ||
+            ''
+          );
+
+    formMovementUnit.value =
+      formatearTexto(
+        tipo.unidadMedida
+      );
+
+    formMovementTool.required =
+      esUnitario;
+
+    formMovementTool.innerHTML = '';
+
+    if (esUnitario) {
+      (
+        catalogosMovimientos.herramientas || []
+      )
+        .filter(herramienta =>
+          herramienta.idTipo ===
+          tipo.idTipo
+        )
+        .sort((a, b) =>
+          String(
+            a.codigoInterno || ''
+          ).localeCompare(
+            String(
+              b.codigoInterno || ''
+            ),
+            'es'
+          )
+        )
+        .forEach(herramienta => {
+          const option =
+            document.createElement(
+              'option'
+            );
+
+          option.value =
+            herramienta.idHerramienta;
+
+          const ubicacion =
+            herramienta.stock
+              ? [
+                  herramienta.stock.tipoUbicacion,
+                  herramienta.stock.sede,
+                  herramienta.stock.responsable
+                ]
+                  .filter(Boolean)
+                  .map(formatearTexto)
+                  .join(' · ')
+              : 'Sin stock';
+
+          option.textContent =
+            `${herramienta.codigoInterno || herramienta.idHerramienta} · ` +
+            `${herramienta.marca || 'Sin marca'} · ${ubicacion}`;
+
+          formMovementTool.appendChild(
+            option
+          );
+        });
+    }
+  }
+
+  function obtenerControlesUbicacionMovimiento(
+    lado
+  ) {
+    if (lado === 'origen') {
+      return {
+        type:
+          formMovementOriginType,
+        site:
+          formMovementOriginSite,
+        entityGroup:
+          movementOriginEntityGroup,
+        entityLabel:
+          movementOriginEntityLabel,
+        entity:
+          formMovementOriginEntity,
+        responsibleGroup:
+          movementOriginResponsibleGroup,
+        responsible:
+          formMovementOriginResponsible,
+        externalGroup:
+          movementOriginExternalGroup,
+        external:
+          formMovementOriginExternal
+      };
+    }
+
+    return {
+      type:
+        formMovementDestinationType,
+      site:
+        formMovementDestinationSite,
+      entityGroup:
+        movementDestinationEntityGroup,
+      entityLabel:
+        movementDestinationEntityLabel,
+      entity:
+        formMovementDestinationEntity,
+      responsibleGroup:
+        movementDestinationResponsibleGroup,
+      responsible:
+        formMovementDestinationResponsible,
+      externalGroup:
+        movementDestinationExternalGroup,
+      external:
+        formMovementDestinationExternal
+    };
+  }
+
+  function actualizarUbicacionMovimiento(
+    lado
+  ) {
+    const controles =
+      obtenerControlesUbicacionMovimiento(
+        lado
+      );
+
+    const tipo =
+      controles.type.value;
+
+    const sedeActual =
+      controles.site.value;
+
+    controles.site.innerHTML = '';
+
+    if (tipo === 'LIMA') {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value = 'LIMA';
+      option.textContent = 'Lima';
+
+      controles.site.appendChild(
+        option
+      );
+
+      controles.site.disabled =
+        true;
+
+    } else {
+      controles.site.disabled =
+        false;
+
+      (
+        catalogosMovimientos.sedes || []
+      ).forEach(sede => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          sede;
+
+        option.textContent =
+          formatearTexto(
+            sede
+          );
+
+        controles.site.appendChild(
+          option
+        );
+      });
+
+      if (
+        sedeActual &&
+        Array.from(
+          controles.site.options
+        ).some(option =>
+          option.value ===
+          sedeActual
+        )
+      ) {
+        controles.site.value =
+          sedeActual;
+      }
+    }
+
+    controles.entity.innerHTML = '';
+    controles.responsible.innerHTML = '';
+    controles.external.value =
+      controles.external.value || '';
+
+    const sede =
+      controles.site.value;
+
+    const externo =
+      [
+        'PROVEEDOR',
+        'REPARACION'
+      ].includes(
+        tipo
+      );
+
+    const sinEntidad =
+      [
+        'LIMA',
+        'BAJA'
+      ].includes(
+        tipo
+      );
+
+    controles.externalGroup.hidden =
+      !externo;
+
+    controles.external.required =
+      externo;
+
+    controles.entityGroup.hidden =
+      externo ||
+      sinEntidad;
+
+    controles.entity.required =
+      !externo &&
+      !sinEntidad;
+
+    controles.responsibleGroup.hidden =
+      true;
+
+    controles.responsible.required =
+      false;
+
+    if (tipo === 'ALMACEN') {
+      controles.entityLabel.textContent =
+        'Almacén';
+
+      llenarEntidadesMovimiento(
+        controles.entity,
+        (
+          catalogosMovimientos.almacenes || []
+        )
+          .filter(item =>
+            item.sede === sede
+          )
+          .map(item => ({
+            value:
+              item.idAlmacen,
+            text:
+              `${item.nombreAlmacen} · ${item.responsable || 'Sin responsable'}`
+          }))
+      );
+    }
+
+    if (tipo === 'CUADRILLA') {
+      controles.entityLabel.textContent =
+        'Cuadrilla';
+
+      llenarEntidadesMovimiento(
+        controles.entity,
+        (
+          catalogosMovimientos.cuadrillas || []
+        )
+          .filter(item =>
+            item.sede === sede
+          )
+          .map(item => ({
+            value:
+              item.idCuadrilla,
+            text:
+              `${item.codigoCuadrilla} · ${formatearTexto(
+                item.plataforma
+              )}`
+          }))
+      );
+
+      controles.responsibleGroup.hidden =
+        false;
+
+      controles.responsible.required =
+        true;
+    }
+
+    if (tipo === 'TECNICO') {
+      controles.entityLabel.textContent =
+        'Técnico';
+
+      llenarEntidadesMovimiento(
+        controles.entity,
+        (
+          catalogosMovimientos.tecnicos || []
+        )
+          .filter(item =>
+            item.sede === sede
+          )
+          .map(item => ({
+            value:
+              item.dni,
+            text:
+              `${item.nombre} · ${item.codigoCuadrilla} · ${item.dni}`
+          }))
+      );
+    }
+
+    if (tipo === 'SUPERVISOR') {
+      controles.entityLabel.textContent =
+        'Supervisor';
+
+      llenarEntidadesMovimiento(
+        controles.entity,
+        (
+          catalogosMovimientos.supervisores || []
+        )
+          .filter(item =>
+            item.sede === sede
+          )
+          .map(item => ({
+            value:
+              item.idSupervisor,
+            text:
+              `${item.nombre} · ${item.dni}`
+          }))
+      );
+    }
+
+    actualizarResponsableUbicacionMovimiento(
+      lado
+    );
+  }
+
+  function llenarEntidadesMovimiento(
+    select,
+    valores
+  ) {
+    const actual =
+      select.value;
+
+    select.innerHTML = '';
+
+    valores.forEach(item => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        item.value;
+
+      option.textContent =
+        item.text;
+
+      select.appendChild(
+        option
+      );
+    });
+
+    if (
+      actual &&
+      Array.from(
+        select.options
+      ).some(option =>
+        option.value === actual
+      )
+    ) {
+      select.value =
+        actual;
+    } else if (
+      select.options.length
+    ) {
+      select.selectedIndex =
+        0;
+    }
+  }
+
+  function actualizarResponsableUbicacionMovimiento(
+    lado
+  ) {
+    const controles =
+      obtenerControlesUbicacionMovimiento(
+        lado
+      );
+
+    if (
+      controles.type.value ===
+      'CUADRILLA'
+    ) {
+      const cuadrilla =
+        (
+          catalogosMovimientos.cuadrillas || []
+        ).find(item =>
+          item.idCuadrilla ===
+          controles.entity.value
+        );
+
+      llenarEntidadesMovimiento(
+        controles.responsible,
+        cuadrilla
+          ? cuadrilla.tecnicos.map(tecnico => ({
+              value:
+                tecnico.dni,
+              text:
+                `${tecnico.nombre} · ${tecnico.dni}`
+            }))
+          : []
+      );
+    }
+
+    actualizarResponsablesEntregaRecepcion();
+  }
+
+  function obtenerNombreUbicacionMovimiento(
+    lado
+  ) {
+    const controles =
+      obtenerControlesUbicacionMovimiento(
+        lado
+      );
+
+    const tipo =
+      controles.type.value;
+
+    if (
+      [
+        'PROVEEDOR',
+        'REPARACION'
+      ].includes(
+        tipo
+      )
+    ) {
+      return controles.external.value.trim();
+    }
+
+    if (tipo === 'LIMA') {
+      return 'LIMA';
+    }
+
+    if (tipo === 'BAJA') {
+      return 'BAJA';
+    }
+
+    if (
+      tipo === 'CUADRILLA'
+    ) {
+      const option =
+        controles.responsible.options[
+          controles.responsible.selectedIndex
+        ];
+
+      return option
+        ? option.textContent
+            .split(' · ')[0]
+        : '';
+    }
+
+    const option =
+      controles.entity.options[
+        controles.entity.selectedIndex
+      ];
+
+    return option
+      ? option.textContent
+          .split(' · ')[0]
+      : '';
+  }
+
+  function actualizarResponsablesEntregaRecepcion() {
+    const entrega =
+      obtenerNombreUbicacionMovimiento(
+        'origen'
+      );
+
+    const recibe =
+      obtenerNombreUbicacionMovimiento(
+        'destino'
+      );
+
+    if (
+      !formMovementDeliver.value.trim() ||
+      formMovementDeliver.dataset.auto ===
+        'SI'
+    ) {
+      formMovementDeliver.value =
+        entrega;
+
+      formMovementDeliver.dataset.auto =
+        'SI';
+    }
+
+    if (
+      !formMovementReceive.value.trim() ||
+      formMovementReceive.dataset.auto ===
+        'SI'
+    ) {
+      formMovementReceive.value =
+        recibe;
+
+      formMovementReceive.dataset.auto =
+        'SI';
+    }
+  }
+
+  function construirUbicacionMovimientoPayload(
+    lado
+  ) {
+    const controles =
+      obtenerControlesUbicacionMovimiento(
+        lado
+      );
+
+    return {
+      tipo:
+        controles.type.value,
+      sede:
+        controles.site.value,
+      idEntidad:
+        controles.entity.value,
+      dniResponsable:
+        controles.responsible.value,
+      nombreExterno:
+        controles.external.value.trim()
+    };
+  }
+
+  function cerrarFormularioMovimiento() {
+    movementModal.hidden = true;
+    movementFormMessage.textContent = '';
+    formMovementDeliver.dataset.auto = '';
+    formMovementReceive.dataset.auto = '';
+  }
+
+  async function guardarMovimiento(
+    event
+  ) {
+    event.preventDefault();
+    movementFormMessage.textContent = '';
+
+    const tipoArticulo =
+      (
+        catalogosMovimientos.tiposArticulo || []
+      ).find(item =>
+        item.idTipo ===
+        formMovementArticleType.value
+      );
+
+    const payload = {
+      accion:
+        'guardar_movimiento',
+      token:
+        auth.token,
+      fecha:
+        formMovementDate.value,
+      hora:
+        formMovementTime.value,
+      tipoMovimiento:
+        formMovementType.value,
+      motivo:
+        formMovementReason.value,
+      idTipo:
+        formMovementArticleType.value,
+      idHerramienta:
+        tipoArticulo &&
+        tipoArticulo.tipoControl ===
+          'UNITARIO'
+          ? formMovementTool.value
+          : '',
+      cantidad:
+        tipoArticulo &&
+        tipoArticulo.tipoControl ===
+          'UNITARIO'
+          ? 1
+          : formMovementQuantity.value,
+      origen:
+        construirUbicacionMovimientoPayload(
+          'origen'
+        ),
+      destino:
+        construirUbicacionMovimientoPayload(
+          'destino'
+        ),
+      responsableEntrega:
+        formMovementDeliver.value.trim(),
+      responsableRecibe:
+        formMovementReceive.value.trim(),
+      numeroCargo:
+        formMovementCargo.value.trim(),
+      evidenciaUrl:
+        formMovementEvidence.value.trim(),
+      observaciones:
+        formMovementNotes.value.trim()
+    };
+
+    if (
+      !payload.fecha ||
+      !payload.hora ||
+      !payload.tipoMovimiento ||
+      !payload.motivo ||
+      !payload.idTipo ||
+      !payload.responsableEntrega ||
+      !payload.responsableRecibe
+    ) {
+      movementFormMessage.textContent =
+        'Completa los campos obligatorios.';
+      return;
+    }
+
+    if (
+      tipoArticulo &&
+      tipoArticulo.tipoControl ===
+        'UNITARIO' &&
+      !payload.idHerramienta
+    ) {
+      movementFormMessage.textContent =
+        'No hay una herramienta individual seleccionada.';
+      return;
+    }
+
+    saveMovementButton.disabled = true;
+    saveMovementButton.textContent =
+      'Registrando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo registrar el movimiento.'
+        );
+      }
+
+      cerrarFormularioMovimiento();
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarMovimientos();
+
+    } catch (error) {
+      movementFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveMovementButton.disabled = false;
+      saveMovementButton.textContent =
+        'Registrar movimiento';
+    }
+  }
+
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    movementsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
@@ -1682,6 +3348,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    movementsView.hidden = true;
     toolsView.hidden = true;
     warehousesView.hidden = true;
     supervisorsView.hidden = true;
@@ -2512,6 +4179,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
     supervisorsView.hidden = true;
@@ -3175,6 +4843,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
@@ -3991,6 +5660,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
@@ -4658,6 +6328,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
@@ -4668,6 +6339,7 @@
   }
 
   function mostrarDashboard() {
+    movementsView.hidden = true;
     toolsView.hidden = true;
     catalogView.hidden = true;
     warehousesView.hidden = true;
@@ -5189,6 +6861,7 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    movimientos = [];
     herramientas = [];
     tiposCatalogo = [];
     almacenes = [];

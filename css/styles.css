@@ -984,3 +984,160 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.movement-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.movement-summary-card {
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.movement-summary-card span,
+.movement-summary-card strong {
+  display: block;
+}
+
+.movement-summary-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.movement-summary-card strong {
+  margin-top: 6px;
+  font-size: 1.55rem;
+}
+
+.movement-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(5, minmax(135px, 1fr));
+  gap: 14px;
+}
+
+.movements-table {
+  min-width: 1320px;
+}
+
+.movement-main-cell strong,
+.movement-main-cell small,
+.movement-article-cell strong,
+.movement-article-cell small,
+.movement-location-cell strong,
+.movement-location-cell small,
+.movement-detail-cell strong,
+.movement-detail-cell small {
+  display: block;
+}
+
+.movement-main-cell small,
+.movement-article-cell small,
+.movement-location-cell small,
+.movement-detail-cell small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.movement-code {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: var(--surface-soft);
+  color: var(--primary);
+  font-family: Consolas, monospace;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.movement-route-arrow {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.modal-card-extra-wide {
+  width: min(1120px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+}
+
+.movement-form-section {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.movement-form-section + .movement-form-section,
+.movement-locations-grid + .movement-form-section {
+  margin-top: 14px;
+}
+
+.movement-form-section h3,
+.movement-location-card h3 {
+  margin: 0 0 14px;
+  font-size: 0.94rem;
+}
+
+.movement-locations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.movement-location-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.movement-evidence-link {
+  display: inline-flex;
+  margin-top: 5px;
+  color: var(--primary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.movement-evidence-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1150px) {
+  .movement-filters-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .movement-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .movement-locations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .movement-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .movement-summary-grid,
+  .movement-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}

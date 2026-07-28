@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.8.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.9.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -267,6 +267,161 @@
 
 
 
+
+
+
+    <main id="movementsView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backMovementsButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Operación</p>
+            <h2>Movimientos</h2>
+            <p class="subtitle">
+              Ingresos, asignaciones, devoluciones y transferencias con actualización automática de stock.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="newMovementButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nuevo movimiento
+          </button>
+
+          <button
+            id="refreshMovementsButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="movement-summary-grid"
+        aria-label="Resumen de movimientos"
+      >
+        <article class="movement-summary-card">
+          <span>Total visible</span>
+          <strong id="movementSummaryTotal">0</strong>
+        </article>
+
+        <article class="movement-summary-card">
+          <span>Confirmados</span>
+          <strong id="movementSummaryConfirmed">0</strong>
+        </article>
+
+        <article class="movement-summary-card">
+          <span>Unitarios</span>
+          <strong id="movementSummaryUnitary">0</strong>
+        </article>
+
+        <article class="movement-summary-card">
+          <span>Por cantidad</span>
+          <strong id="movementSummaryQuantity">0</strong>
+        </article>
+      </section>
+
+      <section
+        class="filters-card"
+        aria-label="Filtros de movimientos"
+      >
+        <div class="movement-filters-grid">
+          <div class="field-group">
+            <label for="movementSearch">Buscar</label>
+            <input
+              id="movementSearch"
+              type="search"
+              placeholder="ID, artículo, código, responsable o cargo"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="movementTypeFilter">Movimiento</label>
+            <select id="movementTypeFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="movementSiteFilter">Sede</label>
+            <select id="movementSiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="movementStateFilter">Estado</label>
+            <select id="movementStateFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="movementDateFrom">Desde</label>
+            <input id="movementDateFrom" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="movementDateTo">Hasta</label>
+            <input id="movementDateTo" type="date">
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div
+          id="movementsLoading"
+          class="loading-state"
+        >
+          Selecciona Actualizar para cargar los movimientos.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="movementsTable"
+            class="data-table movements-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Movimiento</th>
+                <th>Artículo</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Cantidad</th>
+                <th>Motivo / cargo</th>
+                <th>Estado</th>
+                <th>Registro</th>
+              </tr>
+            </thead>
+
+            <tbody id="movementsTableBody"></tbody>
+          </table>
+        </div>
+
+        <p
+          id="movementsEmpty"
+          class="empty-state"
+          hidden
+        >
+          No se encontraron movimientos con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="toolsView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -914,6 +1069,260 @@
 
 
 
+
+
+  <div id="movementModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card modal-card-extra-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="movementModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Control de stock</p>
+          <h2 id="movementModalTitle">Nuevo movimiento</h2>
+        </div>
+
+        <button
+          id="closeMovementModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="movementForm" class="user-form">
+        <div class="movement-form-section">
+          <h3>Datos del movimiento</h3>
+
+          <div class="form-grid form-grid-3">
+            <div class="field-group">
+              <label for="formMovementDate">Fecha</label>
+              <input id="formMovementDate" type="date" required>
+            </div>
+
+            <div class="field-group">
+              <label for="formMovementTime">Hora</label>
+              <input id="formMovementTime" type="time" required>
+            </div>
+
+            <div class="field-group">
+              <label for="formMovementType">Tipo de movimiento</label>
+              <select id="formMovementType" required></select>
+            </div>
+
+            <div class="field-group field-span-3">
+              <label for="formMovementReason">Motivo</label>
+              <select id="formMovementReason" required></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="movement-form-section">
+          <h3>Artículo</h3>
+
+          <div class="form-grid form-grid-3">
+            <div class="field-group field-span-2">
+              <label for="formMovementArticleType">Tipo de herramienta o artículo</label>
+              <select id="formMovementArticleType" required></select>
+            </div>
+
+            <div
+              id="movementToolGroup"
+              class="field-group"
+              hidden
+            >
+              <label for="formMovementTool">Herramienta individual</label>
+              <select id="formMovementTool"></select>
+            </div>
+
+            <div class="field-group">
+              <label for="formMovementQuantity">Cantidad</label>
+              <input
+                id="formMovementQuantity"
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+              >
+            </div>
+
+            <div class="field-group">
+              <label for="formMovementUnit">Unidad</label>
+              <input id="formMovementUnit" type="text" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="movement-locations-grid">
+          <section class="movement-location-card">
+            <h3>Origen</h3>
+
+            <div class="form-grid">
+              <div class="field-group">
+                <label for="formMovementOriginType">Tipo de ubicación</label>
+                <select id="formMovementOriginType" required></select>
+              </div>
+
+              <div class="field-group">
+                <label for="formMovementOriginSite">Sede relacionada</label>
+                <select id="formMovementOriginSite" required></select>
+              </div>
+
+              <div
+                id="movementOriginEntityGroup"
+                class="field-group field-span-2"
+              >
+                <label id="movementOriginEntityLabel" for="formMovementOriginEntity">
+                  Ubicación
+                </label>
+                <select id="formMovementOriginEntity"></select>
+              </div>
+
+              <div
+                id="movementOriginResponsibleGroup"
+                class="field-group field-span-2"
+                hidden
+              >
+                <label for="formMovementOriginResponsible">
+                  Técnico responsable
+                </label>
+                <select id="formMovementOriginResponsible"></select>
+              </div>
+
+              <div
+                id="movementOriginExternalGroup"
+                class="field-group field-span-2"
+                hidden
+              >
+                <label for="formMovementOriginExternal">
+                  Proveedor o responsable externo
+                </label>
+                <input
+                  id="formMovementOriginExternal"
+                  type="text"
+                  list="movementProvidersList"
+                >
+              </div>
+            </div>
+          </section>
+
+          <section class="movement-location-card">
+            <h3>Destino</h3>
+
+            <div class="form-grid">
+              <div class="field-group">
+                <label for="formMovementDestinationType">Tipo de ubicación</label>
+                <select id="formMovementDestinationType" required></select>
+              </div>
+
+              <div class="field-group">
+                <label for="formMovementDestinationSite">Sede relacionada</label>
+                <select id="formMovementDestinationSite" required></select>
+              </div>
+
+              <div
+                id="movementDestinationEntityGroup"
+                class="field-group field-span-2"
+              >
+                <label id="movementDestinationEntityLabel" for="formMovementDestinationEntity">
+                  Ubicación
+                </label>
+                <select id="formMovementDestinationEntity"></select>
+              </div>
+
+              <div
+                id="movementDestinationResponsibleGroup"
+                class="field-group field-span-2"
+                hidden
+              >
+                <label for="formMovementDestinationResponsible">
+                  Técnico responsable
+                </label>
+                <select id="formMovementDestinationResponsible"></select>
+              </div>
+
+              <div
+                id="movementDestinationExternalGroup"
+                class="field-group field-span-2"
+                hidden
+              >
+                <label for="formMovementDestinationExternal">
+                  Proveedor o responsable externo
+                </label>
+                <input
+                  id="formMovementDestinationExternal"
+                  type="text"
+                  list="movementProvidersList"
+                >
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <datalist id="movementProvidersList"></datalist>
+
+        <div class="movement-form-section">
+          <h3>Responsables y sustento</h3>
+
+          <div class="form-grid form-grid-3">
+            <div class="field-group">
+              <label for="formMovementDeliver">Responsable que entrega</label>
+              <input id="formMovementDeliver" type="text" required>
+            </div>
+
+            <div class="field-group">
+              <label for="formMovementReceive">Responsable que recibe</label>
+              <input id="formMovementReceive" type="text" required>
+            </div>
+
+            <div class="field-group">
+              <label for="formMovementCargo">Número de cargo</label>
+              <input id="formMovementCargo" type="text">
+            </div>
+
+            <div class="field-group field-span-3">
+              <label for="formMovementEvidence">URL de evidencia</label>
+              <input
+                id="formMovementEvidence"
+                type="url"
+                placeholder="https://..."
+              >
+            </div>
+
+            <div class="field-group field-span-3">
+              <label for="formMovementNotes">Observaciones</label>
+              <textarea id="formMovementNotes" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <p id="movementFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelMovementFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveMovementButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Registrar movimiento
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="toolModal" class="modal-backdrop" hidden>
     <section
       class="modal-card modal-card-wide"
@@ -1546,7 +1955,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.8.0"></script>
-  <script src="js/app.js?v=0.8.0"></script>
+  <script src="js/config.js?v=0.9.0"></script>
+  <script src="js/app.js?v=0.9.0"></script>
 </body>
 </html>
