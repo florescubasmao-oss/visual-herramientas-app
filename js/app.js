@@ -31,7 +31,6 @@
   const togglePassword = document.getElementById('togglePassword');
   const themeToggle = document.getElementById('themeToggle');
   const logoutButton = document.getElementById('logoutButton');
-  const apiLink = document.getElementById('apiLink');
   const appVersion = document.getElementById('appVersion');
   const userName = document.getElementById('userName');
   const userProfile = document.getElementById('userProfile');
@@ -701,7 +700,6 @@
   async function iniciar() {
     configurarTema();
 
-    apiLink.href = config.API_URL;
     appVersion.textContent = `Versión ${config.VERSION}`;
 
     loginForm.addEventListener('submit', manejarLogin);
