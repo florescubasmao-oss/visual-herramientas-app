@@ -7,6 +7,7 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const dashboardView = document.getElementById('dashboardView');
+  const inventoriesView = document.getElementById('inventoriesView');
   const cargosView = document.getElementById('cargosView');
   const stockView = document.getElementById('stockView');
   const movementsView = document.getElementById('movementsView');
@@ -31,6 +32,45 @@
   const userProfile = document.getElementById('userProfile');
   const welcomeText = document.getElementById('welcomeText');
   const toast = document.getElementById('toast');
+
+  const backInventoriesButton = document.getElementById('backInventoriesButton');
+  const newInventoryButton = document.getElementById('newInventoryButton');
+  const refreshInventoriesButton = document.getElementById('refreshInventoriesButton');
+  const inventorySearch = document.getElementById('inventorySearch');
+  const inventorySiteFilter = document.getElementById('inventorySiteFilter');
+  const inventoryLocationFilter = document.getElementById('inventoryLocationFilter');
+  const inventoryStateFilter = document.getElementById('inventoryStateFilter');
+  const inventoryDateFrom = document.getElementById('inventoryDateFrom');
+  const inventoryDateTo = document.getElementById('inventoryDateTo');
+  const inventoriesLoading = document.getElementById('inventoriesLoading');
+  const inventoriesTable = document.getElementById('inventoriesTable');
+  const inventoriesTableBody = document.getElementById('inventoriesTableBody');
+  const inventoriesEmpty = document.getElementById('inventoriesEmpty');
+  const inventorySummaryTotal = document.getElementById('inventorySummaryTotal');
+  const inventorySummaryDraft = document.getElementById('inventorySummaryDraft');
+  const inventorySummaryFinished = document.getElementById('inventorySummaryFinished');
+  const inventorySummaryDifferences = document.getElementById('inventorySummaryDifferences');
+
+  const inventoryModal = document.getElementById('inventoryModal');
+  const closeInventoryModalButton = document.getElementById('closeInventoryModalButton');
+  const cancelInventoryFormButton = document.getElementById('cancelInventoryFormButton');
+  const inventoryForm = document.getElementById('inventoryForm');
+  const inventoryModalTitle = document.getElementById('inventoryModalTitle');
+  const formInventoryId = document.getElementById('formInventoryId');
+  const formInventoryDate = document.getElementById('formInventoryDate');
+  const formInventoryLocation = document.getElementById('formInventoryLocation');
+  const loadInventoryStockButton = document.getElementById('loadInventoryStockButton');
+  const inventoryCountSection = document.getElementById('inventoryCountSection');
+  const inventoryLocationSummary = document.getElementById('inventoryLocationSummary');
+  const inventoryItemSearch = document.getElementById('inventoryItemSearch');
+  const inventoryCountRecords = document.getElementById('inventoryCountRecords');
+  const inventoryCountConforming = document.getElementById('inventoryCountConforming');
+  const inventoryCountMissing = document.getElementById('inventoryCountMissing');
+  const inventoryCountSurplus = document.getElementById('inventoryCountSurplus');
+  const inventoryCountTableBody = document.getElementById('inventoryCountTableBody');
+  const formInventoryNotes = document.getElementById('formInventoryNotes');
+  const inventoryFormMessage = document.getElementById('inventoryFormMessage');
+  const saveInventoryButton = document.getElementById('saveInventoryButton');
 
   const backCargosButton = document.getElementById('backCargosButton');
   const newCargoButton = document.getElementById('newCargoButton');
@@ -339,6 +379,19 @@
   limpiarCredencialesUrl();
 
   let auth = null;
+  let inventarios = [];
+  let inventarioActual = null;
+  let itemsConteoInventario = [];
+  let puedeRegistrarInventarios = false;
+  let puedeEditarInventarios = false;
+  let puedeAprobarInventarios = false;
+  let puedeAnularInventarios = false;
+  let puedeDescargarInventarios = false;
+  let catalogosInventarios = {
+    ubicaciones: [],
+    sedes: [],
+    estados: []
+  };
   let cargos = [];
   let cargoSeleccionado = null;
   let movimientosCargoSeleccionados = new Set();
@@ -447,6 +500,33 @@
     togglePassword.addEventListener('click', alternarClaveVisible);
     themeToggle.addEventListener('click', alternarTema);
     logoutButton.addEventListener('click', cerrarSesion);
+    backInventoriesButton.addEventListener('click', mostrarDashboard);
+    newInventoryButton.addEventListener('click', abrirNuevoInventario);
+    refreshInventoriesButton.addEventListener('click', cargarInventarios);
+    closeInventoryModalButton.addEventListener('click', cerrarFormularioInventario);
+    cancelInventoryFormButton.addEventListener('click', cerrarFormularioInventario);
+    loadInventoryStockButton.addEventListener('click', cargarStockParaInventario);
+    inventoryForm.addEventListener('submit', guardarInventario);
+    inventoryItemSearch.addEventListener('input', renderizarConteoInventario);
+
+    inventoryModal.addEventListener('click', (event) => {
+      if (event.target === inventoryModal) {
+        cerrarFormularioInventario();
+      }
+    });
+
+    [
+      inventorySearch,
+      inventorySiteFilter,
+      inventoryLocationFilter,
+      inventoryStateFilter,
+      inventoryDateFrom,
+      inventoryDateTo
+    ].forEach((control) => {
+      control.addEventListener('input', renderizarInventarios);
+      control.addEventListener('change', renderizarInventarios);
+    });
+
     backCargosButton.addEventListener('click', mostrarDashboard);
     newCargoButton.addEventListener('click', abrirNuevoCargo);
     refreshCargosButton.addEventListener('click', cargarCargos);
@@ -904,6 +984,11 @@
   function abrirModulo(button) {
     const modulo = String(button.dataset.module || '').toUpperCase();
 
+    if (modulo === 'INVENTARIOS') {
+      abrirInventarios();
+      return;
+    }
+
     if (modulo === 'CARGOS') {
       abrirCargos();
       return;
@@ -961,8 +1046,1530 @@
 
 
 
+
+  async function abrirInventarios() {
+    dashboardView.hidden = true;
+    cargosView.hidden = true;
+    stockView.hidden = true;
+    movementsView.hidden = true;
+    toolsView.hidden = true;
+    catalogView.hidden = true;
+    warehousesView.hidden = true;
+    supervisorsView.hidden = true;
+    crewsView.hidden = true;
+    usersView.hidden = true;
+    inventoriesView.hidden = false;
+
+    await cargarInventarios();
+  }
+
+  async function cargarInventarios() {
+    inventoriesLoading.hidden = false;
+    inventoriesLoading.textContent = 'Cargando inventarios…';
+    inventoriesTable.hidden = true;
+    inventoriesEmpty.hidden = true;
+    refreshInventoriesButton.disabled = true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'listar_inventarios',
+          token:
+            auth.token
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudieron cargar los inventarios.'
+        );
+      }
+
+      inventarios =
+        Array.isArray(
+          respuesta.inventarios
+        )
+          ? respuesta.inventarios
+          : [];
+
+      puedeRegistrarInventarios =
+        Boolean(
+          respuesta.puedeRegistrar
+        );
+
+      puedeEditarInventarios =
+        Boolean(
+          respuesta.puedeEditar
+        );
+
+      puedeAprobarInventarios =
+        Boolean(
+          respuesta.puedeAprobar
+        );
+
+      puedeAnularInventarios =
+        Boolean(
+          respuesta.puedeAnular
+        );
+
+      puedeDescargarInventarios =
+        Boolean(
+          respuesta.puedeDescargar
+        );
+
+      catalogosInventarios =
+        respuesta.catalogos || {
+          ubicaciones: [],
+          sedes: [],
+          estados: []
+        };
+
+      newInventoryButton.hidden =
+        !puedeRegistrarInventarios;
+
+      actualizarCatalogosInventarios();
+      renderizarInventarios();
+      inventoriesLoading.hidden = true;
+
+    } catch (error) {
+      console.error(error);
+      inventoriesLoading.hidden = false;
+      inventoriesLoading.textContent = error.message;
+      inventoriesTable.hidden = true;
+
+    } finally {
+      refreshInventoriesButton.disabled = false;
+    }
+  }
+
+  function actualizarCatalogosInventarios() {
+    llenarSelectConTodos(
+      inventorySiteFilter,
+      catalogosInventarios.sedes || [],
+      'Todas'
+    );
+
+    llenarSelectConTodos(
+      inventoryStateFilter,
+      catalogosInventarios.estados || [],
+      'Todos'
+    );
+
+    const actualFiltro =
+      inventoryLocationFilter.value;
+
+    inventoryLocationFilter.innerHTML = '';
+
+    const todas =
+      document.createElement(
+        'option'
+      );
+
+    todas.value = '';
+    todas.textContent = 'Todas';
+
+    inventoryLocationFilter.appendChild(
+      todas
+    );
+
+    (
+      catalogosInventarios.ubicaciones || []
+    ).forEach(ubicacion => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        ubicacion.clave;
+
+      option.textContent =
+        ubicacion.etiqueta;
+
+      inventoryLocationFilter.appendChild(
+        option
+      );
+    });
+
+    if (
+      actualFiltro &&
+      Array.from(
+        inventoryLocationFilter.options
+      ).some(option =>
+        option.value === actualFiltro
+      )
+    ) {
+      inventoryLocationFilter.value =
+        actualFiltro;
+    }
+
+    const actualFormulario =
+      formInventoryLocation.value;
+
+    formInventoryLocation.innerHTML = '';
+
+    (
+      catalogosInventarios.ubicaciones || []
+    ).forEach(ubicacion => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        ubicacion.clave;
+
+      option.textContent =
+        `${ubicacion.etiqueta} · ${ubicacion.cantidadRegistros} registros`;
+
+      formInventoryLocation.appendChild(
+        option
+      );
+    });
+
+    if (
+      actualFormulario &&
+      Array.from(
+        formInventoryLocation.options
+      ).some(option =>
+        option.value === actualFormulario
+      )
+    ) {
+      formInventoryLocation.value =
+        actualFormulario;
+    }
+  }
+
+  function renderizarInventarios() {
+    const texto =
+      normalizarBusqueda(
+        inventorySearch.value
+      );
+
+    const sede =
+      String(
+        inventorySiteFilter.value || ''
+      ).toUpperCase();
+
+    const claveUbicacion =
+      inventoryLocationFilter.value;
+
+    const estado =
+      String(
+        inventoryStateFilter.value || ''
+      ).toUpperCase();
+
+    const desde =
+      inventoryDateFrom.value;
+
+    const hasta =
+      inventoryDateTo.value;
+
+    const filtrados =
+      inventarios.filter(inventario => {
+        const coincideTexto =
+          !texto ||
+          normalizarBusqueda([
+            inventario.idInventario,
+            inventario.sede,
+            inventario.tipoUbicacion,
+            inventario.idAlmacen,
+            inventario.idCuadrilla,
+            inventario.idSupervisor,
+            inventario.dniResponsable,
+            inventario.responsable,
+            inventario.usuarioRegistra,
+            inventario.observaciones
+          ].join(' ')).includes(
+            texto
+          );
+
+        const coincideSede =
+          !sede ||
+          inventario.sede === sede;
+
+        const coincideUbicacion =
+          !claveUbicacion ||
+          inventario.claveUbicacion ===
+            claveUbicacion;
+
+        const coincideEstado =
+          !estado ||
+          inventario.estadoInventario ===
+            estado;
+
+        const fechaIso =
+          inventario.fechaInventarioIso ||
+          convertirFechaMovimientoIso(
+            inventario.fechaInventario
+          );
+
+        const coincideDesde =
+          !desde ||
+          !fechaIso ||
+          fechaIso >= desde;
+
+        const coincideHasta =
+          !hasta ||
+          !fechaIso ||
+          fechaIso <= hasta;
+
+        return (
+          coincideTexto &&
+          coincideSede &&
+          coincideUbicacion &&
+          coincideEstado &&
+          coincideDesde &&
+          coincideHasta
+        );
+      });
+
+    inventoriesTableBody.innerHTML = '';
+
+    filtrados.forEach(inventario => {
+      inventoriesTableBody.appendChild(
+        crearFilaInventario(
+          inventario
+        )
+      );
+    });
+
+    inventorySummaryTotal.textContent =
+      String(
+        filtrados.length
+      );
+
+    inventorySummaryDraft.textContent =
+      String(
+        filtrados.filter(item =>
+          item.estadoInventario ===
+          'BORRADOR'
+        ).length
+      );
+
+    inventorySummaryFinished.textContent =
+      String(
+        filtrados.filter(item =>
+          item.estadoInventario ===
+          'FINALIZADO'
+        ).length
+      );
+
+    inventorySummaryDifferences.textContent =
+      String(
+        filtrados.filter(item =>
+          Number(
+            item.diferenciaAbsoluta || 0
+          ) > 0
+        ).length
+      );
+
+    inventoriesLoading.hidden = true;
+    inventoriesTable.hidden =
+      filtrados.length === 0;
+    inventoriesEmpty.hidden =
+      filtrados.length !== 0;
+  }
+
+  function crearFilaInventario(
+    inventario
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const celdaPrincipal =
+      document.createElement(
+        'td'
+      );
+
+    celdaPrincipal.className =
+      'inventory-main-cell';
+
+    celdaPrincipal.innerHTML =
+      `<strong>${escaparHtml(
+        inventario.fechaInventario ||
+        'Sin fecha'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        inventario.fechaRegistro ||
+        ''
+      )}</small>` +
+      `<span class="inventory-id">${escaparHtml(
+        inventario.idInventario
+      )}</span>`;
+
+    fila.appendChild(
+      celdaPrincipal
+    );
+
+    const celdaUbicacion =
+      document.createElement(
+        'td'
+      );
+
+    celdaUbicacion.className =
+      'inventory-location-cell';
+
+    celdaUbicacion.innerHTML =
+      `<strong>${escaparHtml(
+        formatearTexto(
+          inventario.tipoUbicacion
+        )
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          formatearTexto(
+            inventario.sede
+          ),
+          inventario.idAlmacen,
+          inventario.idCuadrilla,
+          inventario.idSupervisor
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      celdaUbicacion
+    );
+
+    fila.appendChild(
+      crearCelda(
+        inventario.responsable ||
+        'Sin responsable'
+      )
+    );
+
+    fila.appendChild(
+      crearCelda(
+        String(
+          inventario.cantidadItems || 0
+        )
+      )
+    );
+
+    const celdaResultado =
+      document.createElement(
+        'td'
+      );
+
+    celdaResultado.className =
+      'inventory-result-cell';
+
+    const diferencias =
+      Number(
+        inventario.faltantes || 0
+      ) +
+      Number(
+        inventario.sobrantes || 0
+      );
+
+    celdaResultado.innerHTML =
+      `<strong>${diferencias ? 'Con diferencias' : 'Conforme'}</strong>` +
+      `<small>${escaparHtml(
+        `${inventario.conformes || 0} conformes · ` +
+        `${inventario.faltantes || 0} faltantes · ` +
+        `${inventario.sobrantes || 0} sobrantes`
+      )}</small>`;
+
+    fila.appendChild(
+      celdaResultado
+    );
+
+    const celdaEstado =
+      document.createElement(
+        'td'
+      );
+
+    const insignia =
+      document.createElement(
+        'span'
+      );
+
+    insignia.className =
+      'status-badge ' +
+      (
+        inventario.estadoInventario ===
+          'FINALIZADO'
+          ? 'status-active'
+          : inventario.estadoInventario ===
+              'ANULADO'
+            ? 'status-inactive'
+            : ''
+      );
+
+    insignia.textContent =
+      formatearTexto(
+        inventario.estadoInventario ||
+        'BORRADOR'
+      );
+
+    celdaEstado.appendChild(
+      insignia
+    );
+
+    fila.appendChild(
+      celdaEstado
+    );
+
+    const registro =
+      document.createElement(
+        'td'
+      );
+
+    registro.className =
+      'inventory-result-cell';
+
+    registro.innerHTML =
+      `<strong>${escaparHtml(
+        inventario.usuarioRegistra ||
+        'Sin usuario'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        inventario.usuarioFinaliza
+          ? `Finalizó: ${inventario.usuarioFinaliza}`
+          : 'Pendiente de finalizar'
+      )}</small>`;
+
+    fila.appendChild(
+      registro
+    );
+
+    const acciones =
+      document.createElement(
+        'td'
+      );
+
+    acciones.className =
+      'actions-cell inventory-actions';
+
+    if (
+      puedeEditarInventarios &&
+      inventario.estadoInventario ===
+        'BORRADOR'
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Editar',
+          () =>
+            abrirEditarInventario(
+              inventario
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAprobarInventarios &&
+      inventario.estadoInventario ===
+        'BORRADOR'
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Finalizar',
+          () =>
+            cambiarEstadoInventario(
+              inventario,
+              'FINALIZADO'
+            )
+        )
+      );
+    }
+
+    if (
+      puedeAnularInventarios &&
+      inventario.estadoInventario ===
+        'BORRADOR'
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'Anular',
+          () =>
+            cambiarEstadoInventario(
+              inventario,
+              'ANULADO',
+              true
+            )
+        )
+      );
+    }
+
+    if (
+      puedeDescargarInventarios
+    ) {
+      acciones.appendChild(
+        crearBotonAccion(
+          'CSV',
+          () =>
+            descargarInventarioCsv(
+              inventario
+            )
+        )
+      );
+
+      acciones.appendChild(
+        crearBotonAccion(
+          'Imprimir',
+          () =>
+            imprimirInventario(
+              inventario
+            )
+        )
+      );
+    }
+
+    if (
+      !acciones.children.length
+    ) {
+      acciones.textContent =
+        'Solo lectura';
+    }
+
+    fila.appendChild(
+      acciones
+    );
+
+    return fila;
+  }
+
+  function abrirNuevoInventario() {
+    inventoryForm.reset();
+    formInventoryId.value = '';
+    inventarioActual = null;
+    itemsConteoInventario = [];
+
+    const hoy =
+      new Date();
+
+    formInventoryDate.value =
+      new Date(
+        hoy.getTime() -
+        hoy.getTimezoneOffset() *
+        60000
+      )
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    actualizarCatalogosInventarios();
+
+    formInventoryLocation.disabled =
+      false;
+
+    loadInventoryStockButton.hidden =
+      false;
+
+    inventoryCountSection.hidden =
+      true;
+
+    inventoryCountTableBody.innerHTML =
+      '';
+
+    inventoryModalTitle.textContent =
+      'Nuevo inventario';
+
+    saveInventoryButton.textContent =
+      'Guardar borrador';
+
+    inventoryFormMessage.textContent =
+      '';
+
+    inventoryModal.hidden = false;
+    formInventoryLocation.focus();
+  }
+
+  function abrirEditarInventario(
+    inventario
+  ) {
+    inventoryForm.reset();
+    inventarioActual =
+      inventario;
+
+    formInventoryId.value =
+      inventario.idInventario;
+
+    formInventoryDate.value =
+      inventario.fechaInventarioIso ||
+      '';
+
+    actualizarCatalogosInventarios();
+
+    asegurarUbicacionInventarioFormulario(
+      inventario
+    );
+
+    formInventoryLocation.value =
+      inventario.claveUbicacion;
+
+    formInventoryLocation.disabled =
+      true;
+
+    loadInventoryStockButton.hidden =
+      true;
+
+    formInventoryNotes.value =
+      inventario.observaciones ||
+      '';
+
+    itemsConteoInventario =
+      (
+        inventario.items || []
+      ).map(item => ({
+        ...item,
+        marca:
+          '',
+        modelo:
+          '',
+        serie:
+          '',
+        responsableActual:
+          inventario.responsable ||
+          ''
+      }));
+
+    inventoryLocationSummary.textContent =
+      construirEtiquetaInventarioFrontend(
+        inventario
+      );
+
+    inventoryCountSection.hidden =
+      false;
+
+    inventoryModalTitle.textContent =
+      `Editar ${inventario.idInventario}`;
+
+    saveInventoryButton.textContent =
+      'Guardar cambios';
+
+    inventoryFormMessage.textContent =
+      '';
+
+    renderizarConteoInventario();
+
+    inventoryModal.hidden = false;
+    formInventoryDate.focus();
+  }
+
+  function asegurarUbicacionInventarioFormulario(
+    inventario
+  ) {
+    if (
+      Array.from(
+        formInventoryLocation.options
+      ).some(option =>
+        option.value ===
+        inventario.claveUbicacion
+      )
+    ) {
+      return;
+    }
+
+    const option =
+      document.createElement(
+        'option'
+      );
+
+    option.value =
+      inventario.claveUbicacion;
+
+    option.textContent =
+      construirEtiquetaInventarioFrontend(
+        inventario
+      );
+
+    formInventoryLocation.appendChild(
+      option
+    );
+  }
+
+  function construirEtiquetaInventarioFrontend(
+    inventario
+  ) {
+    return [
+      inventario.sede,
+      inventario.tipoUbicacion,
+      inventario.idAlmacen,
+      inventario.idCuadrilla,
+      inventario.idSupervisor,
+      inventario.responsable
+    ]
+      .filter(Boolean)
+      .map(formatearTexto)
+      .join(' · ');
+  }
+
+  async function cargarStockParaInventario() {
+    const clave =
+      formInventoryLocation.value;
+
+    if (!clave) {
+      inventoryFormMessage.textContent =
+        'Selecciona una ubicación.';
+      return;
+    }
+
+    loadInventoryStockButton.disabled =
+      true;
+
+    loadInventoryStockButton.textContent =
+      'Cargando…';
+
+    inventoryFormMessage.textContent =
+      '';
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cargar_stock_inventario',
+          token:
+            auth.token,
+          claveUbicacion:
+            clave
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cargar el stock.'
+        );
+      }
+
+      itemsConteoInventario =
+        Array.isArray(
+          respuesta.items
+        )
+          ? respuesta.items
+          : [];
+
+      inventoryLocationSummary.textContent =
+        respuesta.ubicacion
+          ? respuesta.ubicacion.etiqueta
+          : '';
+
+      inventoryCountSection.hidden =
+        false;
+
+      formInventoryLocation.disabled =
+        true;
+
+      renderizarConteoInventario();
+
+    } catch (error) {
+      inventoryFormMessage.textContent =
+        error.message;
+
+    } finally {
+      loadInventoryStockButton.disabled =
+        false;
+
+      loadInventoryStockButton.textContent =
+        'Cargar stock';
+    }
+  }
+
+  function renderizarConteoInventario() {
+    const texto =
+      normalizarBusqueda(
+        inventoryItemSearch.value
+      );
+
+    inventoryCountTableBody.innerHTML = '';
+
+    itemsConteoInventario
+      .filter(item =>
+        !texto ||
+        normalizarBusqueda([
+          item.tipoHerramienta,
+          item.categoria,
+          item.codigoInterno,
+          item.marca,
+          item.modelo,
+          item.serie,
+          item.responsableActual,
+          item.dniResponsable
+        ].join(' ')).includes(
+          texto
+        )
+      )
+      .forEach(item => {
+        inventoryCountTableBody.appendChild(
+          crearFilaConteoInventario(
+            item
+          )
+        );
+      });
+
+    actualizarResumenConteoInventario();
+  }
+
+  function crearFilaConteoInventario(
+    item
+  ) {
+    const fila =
+      document.createElement(
+        'tr'
+      );
+
+    const articulo =
+      document.createElement(
+        'td'
+      );
+
+    articulo.innerHTML =
+      `<strong>${escaparHtml(
+        item.tipoHerramienta ||
+        'Sin artículo'
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          formatearTexto(
+            item.categoria
+          ),
+          formatearTexto(
+            item.tipoControl
+          )
+        ].filter(Boolean).join(' · ')
+      )}</small>`;
+
+    fila.appendChild(
+      articulo
+    );
+
+    const identificacion =
+      document.createElement(
+        'td'
+      );
+
+    identificacion.innerHTML =
+      `<strong>${escaparHtml(
+        item.codigoInterno ||
+        item.idStock
+      )}</strong>` +
+      `<small>${escaparHtml(
+        [
+          item.marca,
+          item.modelo,
+          item.serie
+            ? `Serie ${item.serie}`
+            : ''
+        ].filter(Boolean).join(' · ') ||
+        'Control por cantidad'
+      )}</small>`;
+
+    fila.appendChild(
+      identificacion
+    );
+
+    fila.appendChild(
+      crearCelda(
+        item.responsableActual ||
+        'Sin responsable'
+      )
+    );
+
+    fila.appendChild(
+      crearCelda(
+        `${formatearCantidadStock(
+          item.cantidadSistema
+        )} ${formatearTexto(
+          item.unidadMedida
+        )}`
+      )
+    );
+
+    const celdaConteo =
+      document.createElement(
+        'td'
+      );
+
+    const input =
+      document.createElement(
+        'input'
+      );
+
+    input.type =
+      'number';
+
+    input.min =
+      '0';
+
+    input.step =
+      item.tipoControl ===
+        'UNITARIO'
+        ? '1'
+        : '0.01';
+
+    if (
+      item.tipoControl ===
+        'UNITARIO'
+    ) {
+      input.max =
+        '1';
+    }
+
+    input.value =
+      String(
+        item.cantidadFisica
+      );
+
+    input.addEventListener(
+      'input',
+      () => {
+        let valor =
+          Number(
+            input.value
+          );
+
+        if (
+          !Number.isFinite(
+            valor
+          ) ||
+          valor < 0
+        ) {
+          valor = 0;
+        }
+
+        if (
+          item.tipoControl ===
+            'UNITARIO'
+        ) {
+          valor =
+            valor >= 1
+              ? 1
+              : 0;
+
+          input.value =
+            String(
+              valor
+            );
+        }
+
+        item.cantidadFisica =
+          valor;
+
+        item.diferencia =
+          valor -
+          Number(
+            item.cantidadSistema || 0
+          );
+
+        item.resultado =
+          item.diferencia === 0
+            ? 'CONFORME'
+            : (
+                item.diferencia < 0
+                  ? 'FALTANTE'
+                  : 'SOBRANTE'
+              );
+
+        actualizarFilaResultadoInventario(
+          fila,
+          item
+        );
+
+        actualizarResumenConteoInventario();
+      }
+    );
+
+    celdaConteo.appendChild(
+      input
+    );
+
+    fila.appendChild(
+      celdaConteo
+    );
+
+    const diferencia =
+      document.createElement(
+        'td'
+      );
+
+    diferencia.dataset.inventoryDifference =
+      'SI';
+
+    fila.appendChild(
+      diferencia
+    );
+
+    const resultado =
+      document.createElement(
+        'td'
+      );
+
+    resultado.dataset.inventoryResult =
+      'SI';
+
+    fila.appendChild(
+      resultado
+    );
+
+    actualizarFilaResultadoInventario(
+      fila,
+      item
+    );
+
+    return fila;
+  }
+
+  function actualizarFilaResultadoInventario(
+    fila,
+    item
+  ) {
+    const diferencia =
+      fila.querySelector(
+        '[data-inventory-difference]'
+      );
+
+    const resultado =
+      fila.querySelector(
+        '[data-inventory-result]'
+      );
+
+    if (diferencia) {
+      diferencia.textContent =
+        formatearCantidadStock(
+          item.diferencia
+        );
+    }
+
+    if (resultado) {
+      resultado.innerHTML = '';
+
+      const insignia =
+        document.createElement(
+          'span'
+        );
+
+      insignia.className =
+        'inventory-result-badge ' +
+        (
+          item.resultado ===
+            'CONFORME'
+            ? 'inventory-result-conforming'
+            : item.resultado ===
+                'FALTANTE'
+              ? 'inventory-result-missing'
+              : 'inventory-result-surplus'
+        );
+
+      insignia.textContent =
+        formatearTexto(
+          item.resultado
+        );
+
+      resultado.appendChild(
+        insignia
+      );
+    }
+  }
+
+  function actualizarResumenConteoInventario() {
+    inventoryCountRecords.textContent =
+      String(
+        itemsConteoInventario.length
+      );
+
+    inventoryCountConforming.textContent =
+      String(
+        itemsConteoInventario.filter(item =>
+          item.resultado ===
+          'CONFORME'
+        ).length
+      );
+
+    inventoryCountMissing.textContent =
+      String(
+        itemsConteoInventario.filter(item =>
+          item.resultado ===
+          'FALTANTE'
+        ).length
+      );
+
+    inventoryCountSurplus.textContent =
+      String(
+        itemsConteoInventario.filter(item =>
+          item.resultado ===
+          'SOBRANTE'
+        ).length
+      );
+  }
+
+  function cerrarFormularioInventario() {
+    inventoryModal.hidden = true;
+    inventoryFormMessage.textContent = '';
+    formInventoryLocation.disabled =
+      false;
+    inventoryCountSection.hidden =
+      true;
+    inventarioActual = null;
+    itemsConteoInventario = [];
+  }
+
+  async function guardarInventario(
+    event
+  ) {
+    event.preventDefault();
+    inventoryFormMessage.textContent =
+      '';
+
+    if (
+      !formInventoryDate.value ||
+      !formInventoryLocation.value ||
+      !itemsConteoInventario.length
+    ) {
+      inventoryFormMessage.textContent =
+        'Selecciona la fecha, ubicación y carga el stock.';
+      return;
+    }
+
+    const payload = {
+      accion:
+        'guardar_inventario',
+      token:
+        auth.token,
+      idInventario:
+        formInventoryId.value.trim(),
+      fechaInventario:
+        formInventoryDate.value,
+      claveUbicacion:
+        formInventoryLocation.value,
+      observaciones:
+        formInventoryNotes.value.trim(),
+      items:
+        itemsConteoInventario.map(item => ({
+          idStock:
+            item.idStock,
+          cantidadFisica:
+            item.cantidadFisica
+        }))
+    };
+
+    saveInventoryButton.disabled =
+      true;
+
+    saveInventoryButton.textContent =
+      'Guardando…';
+
+    try {
+      const respuesta =
+        await solicitarApi(
+          payload
+        );
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo guardar el inventario.'
+        );
+      }
+
+      cerrarFormularioInventario();
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarInventarios();
+
+    } catch (error) {
+      inventoryFormMessage.textContent =
+        error.message;
+
+    } finally {
+      saveInventoryButton.disabled =
+        false;
+
+      saveInventoryButton.textContent =
+        formInventoryId.value
+          ? 'Guardar cambios'
+          : 'Guardar borrador';
+    }
+  }
+
+  async function cambiarEstadoInventario(
+    inventario,
+    estado,
+    requiereComentario = false
+  ) {
+    let comentario = '';
+
+    if (requiereComentario) {
+      comentario =
+        window.prompt(
+          'Indica el motivo de la anulación:'
+        );
+
+      if (
+        comentario === null
+      ) {
+        return;
+      }
+
+      comentario =
+        comentario.trim();
+
+      if (!comentario) {
+        window.alert(
+          'Debes ingresar un motivo.'
+        );
+
+        return;
+      }
+
+    } else {
+      const mensaje =
+        Number(
+          inventario.diferenciaAbsoluta || 0
+        ) > 0
+          ? 'Este inventario tiene diferencias. Se finalizará sin modificar el stock. ¿Continuar?'
+          : '¿Deseas finalizar este inventario?';
+
+      if (
+        !window.confirm(
+          mensaje
+        )
+      ) {
+        return;
+      }
+    }
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_inventario',
+          token:
+            auth.token,
+          idInventario:
+            inventario.idInventario,
+          estado:
+            estado,
+          comentario:
+            comentario
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado.'
+        );
+      }
+
+      mostrarToast(
+        respuesta.mensaje
+      );
+
+      await cargarInventarios();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+    }
+  }
+
+  function descargarInventarioCsv(
+    inventario
+  ) {
+    const encabezados = [
+      'ID_INVENTARIO',
+      'FECHA',
+      'SEDE',
+      'TIPO_UBICACION',
+      'RESPONSABLE',
+      'ID_STOCK',
+      'ID_TIPO',
+      'TIPO_HERRAMIENTA',
+      'CATEGORIA',
+      'TIPO_CONTROL',
+      'ID_HERRAMIENTA',
+      'CODIGO_INTERNO',
+      'CANTIDAD_SISTEMA',
+      'CANTIDAD_FISICA',
+      'DIFERENCIA',
+      'UNIDAD_MEDIDA',
+      'RESULTADO',
+      'ESTADO_INVENTARIO'
+    ];
+
+    const filas =
+      (inventario.items || [])
+        .map(item => [
+          inventario.idInventario,
+          inventario.fechaInventario,
+          inventario.sede,
+          inventario.tipoUbicacion,
+          inventario.responsable,
+          item.idStock,
+          item.idTipo,
+          item.tipoHerramienta,
+          item.categoria,
+          item.tipoControl,
+          item.idHerramienta,
+          item.codigoInterno,
+          item.cantidadSistema,
+          item.cantidadFisica,
+          item.diferencia,
+          item.unidadMedida,
+          item.resultado,
+          inventario.estadoInventario
+        ]);
+
+    descargarCsvGenerico(
+      `inventario_${inventario.idInventario}.csv`,
+      encabezados,
+      filas
+    );
+  }
+
+  function descargarCsvGenerico(
+    nombreArchivo,
+    encabezados,
+    filas
+  ) {
+    const contenido =
+      [
+        encabezados,
+        ...filas
+      ]
+        .map(fila =>
+          fila
+            .map(valor =>
+              escaparCsvStock(
+                valor
+              )
+            )
+            .join(';')
+        )
+        .join('\r\n');
+
+    const blob =
+      new Blob(
+        [
+          '\uFEFF',
+          contenido
+        ],
+        {
+          type:
+            'text/csv;charset=utf-8'
+        }
+      );
+
+    const enlace =
+      document.createElement(
+        'a'
+      );
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+    enlace.href =
+      url;
+
+    enlace.download =
+      nombreArchivo;
+
+    document.body.appendChild(
+      enlace
+    );
+
+    enlace.click();
+    enlace.remove();
+
+    URL.revokeObjectURL(
+      url
+    );
+  }
+
+  function imprimirInventario(
+    inventario
+  ) {
+    const filas =
+      (inventario.items || [])
+        .map(
+          (
+            item,
+            indice
+          ) =>
+            `<tr>` +
+            `<td>${indice + 1}</td>` +
+            `<td>${escaparHtml(item.tipoHerramienta || '')}</td>` +
+            `<td>${escaparHtml(item.codigoInterno || item.idStock || '')}</td>` +
+            `<td>${escaparHtml(formatearCantidadStock(item.cantidadSistema))}</td>` +
+            `<td>${escaparHtml(formatearCantidadStock(item.cantidadFisica))}</td>` +
+            `<td>${escaparHtml(formatearCantidadStock(item.diferencia))}</td>` +
+            `<td>${escaparHtml(formatearTexto(item.resultado))}</td>` +
+            `</tr>`
+        )
+        .join('');
+
+    const ventana =
+      window.open(
+        '',
+        '_blank',
+        'width=1000,height=760'
+      );
+
+    if (!ventana) {
+      window.alert(
+        'El navegador bloqueó la ventana de impresión.'
+      );
+
+      return;
+    }
+
+    ventana.document.write(
+      `<!doctype html>` +
+      `<html lang="es">` +
+      `<head>` +
+      `<meta charset="utf-8">` +
+      `<title>${escaparHtml(inventario.idInventario)}</title>` +
+      `<style>` +
+      `body{font-family:Arial,sans-serif;color:#111;margin:28px}` +
+      `h1{font-size:22px;margin:0}` +
+      `.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}` +
+      `.meta div{border:1px solid #ccc;padding:9px}` +
+      `.meta span{display:block;font-size:11px;color:#555}` +
+      `.meta strong{display:block;margin-top:4px;font-size:13px}` +
+      `table{width:100%;border-collapse:collapse}` +
+      `th,td{border:1px solid #bbb;padding:7px;font-size:11px;text-align:left}` +
+      `th{background:#eee}` +
+      `@media print{button{display:none}body{margin:12mm}}` +
+      `</style>` +
+      `</head>` +
+      `<body>` +
+      `<h1>INVENTARIO FÍSICO</h1>` +
+      `<p>${escaparHtml(inventario.idInventario)} · ${escaparHtml(formatearTexto(inventario.estadoInventario))}</p>` +
+      `<div class="meta">` +
+      `<div><span>Fecha</span><strong>${escaparHtml(inventario.fechaInventario || '')}</strong></div>` +
+      `<div><span>Sede</span><strong>${escaparHtml(formatearTexto(inventario.sede))}</strong></div>` +
+      `<div><span>Ubicación</span><strong>${escaparHtml(formatearTexto(inventario.tipoUbicacion))}</strong></div>` +
+      `<div><span>Responsable</span><strong>${escaparHtml(inventario.responsable || '')}</strong></div>` +
+      `<div><span>Ítems</span><strong>${escaparHtml(String(inventario.cantidadItems || 0))}</strong></div>` +
+      `<div><span>Diferencias</span><strong>${escaparHtml(String((inventario.faltantes || 0) + (inventario.sobrantes || 0)))}</strong></div>` +
+      `</div>` +
+      `<table>` +
+      `<thead><tr><th>N.°</th><th>Artículo</th><th>Código</th><th>Sistema</th><th>Físico</th><th>Diferencia</th><th>Resultado</th></tr></thead>` +
+      `<tbody>${filas}</tbody>` +
+      `</table>` +
+      `<p><strong>Observaciones:</strong> ${escaparHtml(inventario.observaciones || 'Sin observaciones')}</p>` +
+      `<button onclick="window.print()">Imprimir</button>` +
+      `</body></html>`
+    );
+
+    ventana.document.close();
+    ventana.focus();
+  }
+
   async function abrirCargos() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -2295,6 +3902,7 @@
 
   async function abrirStockActual() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     movementsView.hidden = true;
     toolsView.hidden = true;
@@ -2987,6 +4595,7 @@
 
   async function abrirMovimientos() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     toolsView.hidden = true;
@@ -4522,6 +6131,7 @@
 
   async function abrirHerramientas() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -5518,6 +7128,7 @@
 
   async function abrirCatalogoHerramientas() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -6351,6 +7962,7 @@
 
   async function abrirAlmacenes() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -7017,6 +8629,7 @@
 
   async function abrirSupervisores() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -7836,6 +9449,7 @@
 
   async function abrirCuadrillas() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -8506,6 +10120,7 @@
 
   async function abrirUsuarios() {
     dashboardView.hidden = true;
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -8519,6 +10134,7 @@
   }
 
   function mostrarDashboard() {
+    inventoriesView.hidden = true;
     cargosView.hidden = true;
     stockView.hidden = true;
     movementsView.hidden = true;
@@ -9043,6 +10659,9 @@
   function limpiarSesion() {
     localStorage.removeItem(config.STORAGE_KEY);
     auth = null;
+    inventarios = [];
+    inventarioActual = null;
+    itemsConteoInventario = [];
     cargos = [];
     cargoSeleccionado = null;
     movimientosCargoSeleccionados = new Set();

@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.11.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.12.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -273,6 +273,148 @@
 
 
 
+
+
+
+    <main id="inventoriesView" class="main-content" hidden>
+      <section class="page-toolbar">
+        <div class="page-toolbar-title">
+          <button
+            id="backInventoriesButton"
+            class="secondary-button compact-button"
+            type="button"
+          >
+            ← Volver
+          </button>
+
+          <div>
+            <p class="section-label">Control físico</p>
+            <h2>Inventarios</h2>
+            <p class="subtitle">
+              Conteos físicos por ubicación y comparación contra Stock Actual.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            id="newInventoryButton"
+            class="primary-button toolbar-button"
+            type="button"
+            hidden
+          >
+            + Nuevo inventario
+          </button>
+
+          <button
+            id="refreshInventoriesButton"
+            class="secondary-button"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="inventory-summary-grid">
+        <article class="inventory-summary-card">
+          <span>Total visible</span>
+          <strong id="inventorySummaryTotal">0</strong>
+        </article>
+
+        <article class="inventory-summary-card">
+          <span>Borradores</span>
+          <strong id="inventorySummaryDraft">0</strong>
+        </article>
+
+        <article class="inventory-summary-card">
+          <span>Finalizados</span>
+          <strong id="inventorySummaryFinished">0</strong>
+        </article>
+
+        <article class="inventory-summary-card">
+          <span>Con diferencias</span>
+          <strong id="inventorySummaryDifferences">0</strong>
+        </article>
+      </section>
+
+      <section class="filters-card">
+        <div class="inventory-filters-grid">
+          <div class="field-group">
+            <label for="inventorySearch">Buscar</label>
+            <input
+              id="inventorySearch"
+              type="search"
+              placeholder="ID, responsable o ubicación"
+            >
+          </div>
+
+          <div class="field-group">
+            <label for="inventorySiteFilter">Sede</label>
+            <select id="inventorySiteFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="inventoryLocationFilter">Ubicación</label>
+            <select id="inventoryLocationFilter">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="inventoryStateFilter">Estado</label>
+            <select id="inventoryStateFilter">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="inventoryDateFrom">Desde</label>
+            <input id="inventoryDateFrom" type="date">
+          </div>
+
+          <div class="field-group">
+            <label for="inventoryDateTo">Hasta</label>
+            <input id="inventoryDateTo" type="date">
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div id="inventoriesLoading" class="loading-state">
+          Selecciona Actualizar para cargar los inventarios.
+        </div>
+
+        <div class="table-scroll">
+          <table
+            id="inventoriesTable"
+            class="data-table inventories-table"
+            hidden
+          >
+            <thead>
+              <tr>
+                <th>Inventario</th>
+                <th>Ubicación</th>
+                <th>Responsable</th>
+                <th>Ítems</th>
+                <th>Resultado</th>
+                <th>Estado</th>
+                <th>Registro</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="inventoriesTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="inventoriesEmpty" class="empty-state" hidden>
+          No se encontraron inventarios con los filtros aplicados.
+        </p>
+      </section>
+    </main>
 
     <main id="cargosView" class="main-content" hidden>
       <section class="page-toolbar">
@@ -1381,6 +1523,140 @@
 
 
 
+
+
+  <div id="inventoryModal" class="modal-backdrop" hidden>
+    <section
+      class="modal-card modal-card-extra-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="inventoryModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Conteo físico</p>
+          <h2 id="inventoryModalTitle">Nuevo inventario</h2>
+        </div>
+
+        <button
+          id="closeInventoryModalButton"
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="inventoryForm" class="user-form">
+        <input id="formInventoryId" type="hidden">
+
+        <div class="inventory-form-header">
+          <div class="field-group">
+            <label for="formInventoryDate">Fecha</label>
+            <input id="formInventoryDate" type="date" required>
+          </div>
+
+          <div class="field-group inventory-location-field">
+            <label for="formInventoryLocation">Ubicación</label>
+            <select id="formInventoryLocation" required></select>
+          </div>
+
+          <button
+            id="loadInventoryStockButton"
+            class="secondary-button inventory-load-button"
+            type="button"
+          >
+            Cargar stock
+          </button>
+        </div>
+
+        <section id="inventoryCountSection" class="inventory-count-section" hidden>
+          <div class="inventory-count-header">
+            <div>
+              <h3>Conteo físico</h3>
+              <p id="inventoryLocationSummary">—</p>
+            </div>
+
+            <div class="field-group inventory-item-search">
+              <label for="inventoryItemSearch">Buscar artículo</label>
+              <input
+                id="inventoryItemSearch"
+                type="search"
+                placeholder="Artículo, código, serie o responsable"
+              >
+            </div>
+          </div>
+
+          <div class="inventory-count-summary">
+            <div>
+              <span>Registros</span>
+              <strong id="inventoryCountRecords">0</strong>
+            </div>
+
+            <div>
+              <span>Conformes</span>
+              <strong id="inventoryCountConforming">0</strong>
+            </div>
+
+            <div>
+              <span>Faltantes</span>
+              <strong id="inventoryCountMissing">0</strong>
+            </div>
+
+            <div>
+              <span>Sobrantes</span>
+              <strong id="inventoryCountSurplus">0</strong>
+            </div>
+          </div>
+
+          <div class="table-scroll inventory-count-scroll">
+            <table class="data-table inventory-count-table">
+              <thead>
+                <tr>
+                  <th>Artículo</th>
+                  <th>Identificación</th>
+                  <th>Responsable actual</th>
+                  <th>Sistema</th>
+                  <th>Conteo físico</th>
+                  <th>Diferencia</th>
+                  <th>Resultado</th>
+                </tr>
+              </thead>
+
+              <tbody id="inventoryCountTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="field-group">
+          <label for="formInventoryNotes">Observaciones generales</label>
+          <textarea id="formInventoryNotes" rows="3"></textarea>
+        </div>
+
+        <p id="inventoryFormMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button
+            id="cancelInventoryFormButton"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="saveInventoryButton"
+            class="primary-button modal-primary-button"
+            type="submit"
+          >
+            Guardar borrador
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="cargoModal" class="modal-backdrop" hidden>
     <section
       class="modal-card modal-card-extra-wide"
@@ -2402,7 +2678,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.11.0"></script>
-  <script src="js/app.js?v=0.11.0"></script>
+  <script src="js/config.js?v=0.12.0"></script>
+  <script src="js/app.js?v=0.12.0"></script>
 </body>
 </html>
