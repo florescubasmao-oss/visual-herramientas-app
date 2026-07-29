@@ -444,6 +444,10 @@ h2 {
   color: var(--danger);
 }
 
+.status-observed {
+  color: var(--accent);
+}
+
 .actions-cell {
   display: flex;
   gap: 7px;

@@ -9341,10 +9341,21 @@
         item.estadoStock ===
           'DISPONIBLE'
           ? 'status-active'
-          : item.estadoStock ===
-              'DADO_DE_BAJA'
-            ? 'status-inactive'
-            : ''
+          : [
+              'OBSERVADO',
+              'EN_REPARACION'
+            ].includes(
+              item.estadoStock
+            )
+            ? 'status-observed'
+            : [
+                'DADO_DE_BAJA',
+                'DEVUELTO_LIMA'
+              ].includes(
+                item.estadoStock
+              )
+              ? 'status-inactive'
+              : ''
       );
 
     insignia.textContent =
