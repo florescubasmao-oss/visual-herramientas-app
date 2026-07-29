@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.18.3">
+  <link rel="stylesheet" href="css/styles.css?v=0.19.0">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -167,7 +167,7 @@
 
           <button class="module-card" type="button" data-module="HERRAMIENTAS">
             <span class="module-icon">⇧</span>
-            <span><strong>Carga inicial</strong><small>Importación por cantidad desde la hoja de control</small></span>
+            <span><strong>Carga inicial</strong><small>Registro múltiple por almacén o cuadrilla</small></span>
           </button>
 
           <button class="module-card" type="button" data-module="CATALOGO">
@@ -1741,21 +1741,29 @@
 
           <div>
             <p class="section-label">Implementación inicial</p>
-            <h2>Carga inicial de stock</h2>
+            <h2>Carga inicial rápida</h2>
             <p class="subtitle">
-              Valida y procesa las herramientas existentes por cantidad, ubicación y responsable desde CARGA_INICIAL_STOCK.
+              Selecciona un almacén o una cuadrilla y registra varias herramientas del catálogo en una sola operación.
             </p>
           </div>
         </div>
 
         <div class="toolbar-actions">
           <button
-            id="newToolButton"
-            class="primary-button toolbar-button"
+            id="openCatalogFromInitialLoadButton"
+            class="secondary-button"
+            type="button"
+          >
+            Abrir catálogo
+          </button>
+
+          <button
+            id="toggleInitialLoadButton"
+            class="secondary-button"
             type="button"
             hidden
           >
-            Procesar filas válidas
+            Cerrar carga inicial
           </button>
 
           <button
@@ -1768,74 +1776,100 @@
         </div>
       </section>
 
+      <section id="initialLoadStatusPanel" class="quick-load-status-panel">
+        <div>
+          <span id="initialLoadStatusBadge" class="quick-load-status-badge">
+            Verificando
+          </span>
+          <strong id="initialLoadStatusText">
+            Consultando el estado de la carga inicial.
+          </strong>
+        </div>
+
+        <p>
+          Al terminar la carga de las tres sedes, el administrador podrá cerrarla.
+          Después, los ingresos, asignaciones, devoluciones, transferencias y bajas se registrarán desde Movimientos.
+        </p>
+      </section>
+
+      <section class="filters-card">
+        <div class="quick-load-destination-grid">
+          <div class="field-group">
+            <label for="toolCategoryFilter">Sede</label>
+            <select id="toolCategoryFilter">
+              <option value="">Seleccionar</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="toolTypeFilter">Destino</label>
+            <select id="toolTypeFilter">
+              <option value="ALMACEN">Almacén</option>
+              <option value="CUADRILLA">Cuadrilla</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label id="quickLoadEntityLabel" for="toolConditionFilter">
+              Almacén
+            </label>
+            <select id="toolConditionFilter">
+              <option value="">Seleccionar</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="toolSeriesFilter">Responsable</label>
+            <select id="toolSeriesFilter">
+              <option value="">Seleccionar</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
       <section class="initial-load-notice">
-        <strong>No se registran alicates, martillos, testers ni EPP uno por uno.</strong>
+        <strong>Las marcas se administran como variantes del catálogo.</strong>
         <span>
-          Cada fila representa una cantidad actualmente ubicada en un almacén, cuadrilla, técnico o supervisor.
-          Las filas cargadas generan automáticamente un movimiento CARGA_INICIAL y actualizan Stock Actual.
+          Ejemplo: ALICATE CORTE - TOTAL, ALICATE CORTE - STANLEY o ALICATE CORTE - SIN MARCA.
+          Si aparece una marca nueva, primero agrégala en Catálogo.
         </span>
       </section>
 
       <section class="initial-load-summary-grid">
         <article class="initial-load-summary-card">
-          <span>Filas con información</span>
+          <span>Herramientas del catálogo</span>
           <strong id="initialLoadSummaryTotal">0</strong>
         </article>
 
         <article class="initial-load-summary-card">
-          <span>Válidas pendientes</span>
+          <span>Tipos seleccionados</span>
           <strong id="initialLoadSummaryValid">0</strong>
         </article>
 
         <article class="initial-load-summary-card">
-          <span>Con error</span>
+          <span>Cantidad total</span>
           <strong id="initialLoadSummaryErrors">0</strong>
         </article>
 
         <article class="initial-load-summary-card">
-          <span>Cargadas</span>
-          <strong id="initialLoadSummaryLoaded">0</strong>
+          <span>Destino</span>
+          <strong id="initialLoadSummaryLoaded">Sin seleccionar</strong>
         </article>
       </section>
 
-      <section class="filters-card">
-        <div class="initial-load-filters-grid">
-          <div class="field-group">
-            <label for="toolSearch">Buscar</label>
-            <input
-              id="toolSearch"
-              type="search"
-              placeholder="Fila, herramienta, cuadrilla, responsable o mensaje"
-            >
-          </div>
+      <section class="filters-card quick-load-search-card">
+        <div class="field-group">
+          <label for="toolSearch">Buscar herramienta o marca</label>
+          <input
+            id="toolSearch"
+            type="search"
+            placeholder="Ejemplo: alicate, total, escalera, sin marca..."
+          >
+        </div>
 
-          <div class="field-group">
-            <label for="toolCategoryFilter">Sede</label>
-            <select id="toolCategoryFilter">
-              <option value="">Todas</option>
-            </select>
-          </div>
-
-          <div class="field-group">
-            <label for="toolTypeFilter">Ubicación</label>
-            <select id="toolTypeFilter">
-              <option value="">Todas</option>
-            </select>
-          </div>
-
-          <div class="field-group">
-            <label for="toolConditionFilter">Estado de carga</label>
-            <select id="toolConditionFilter">
-              <option value="">Todos</option>
-            </select>
-          </div>
-
-          <div class="field-group">
-            <label for="toolSeriesFilter">Validación</label>
-            <select id="toolSeriesFilter">
-              <option value="">Todas</option>
-            </select>
-          </div>
+        <div class="quick-load-search-result">
+          <span>Resultados visibles</span>
+          <strong id="quickLoadVisibleCount">0</strong>
         </div>
       </section>
 
@@ -1844,25 +1878,22 @@
           id="toolsLoading"
           class="loading-state"
         >
-          Selecciona Actualizar para validar CARGA_INICIAL_STOCK.
+          Selecciona Actualizar para cargar el catálogo.
         </div>
 
         <div class="table-scroll">
           <table
             id="toolsTable"
-            class="data-table initial-load-table"
+            class="data-table quick-load-table"
             hidden
           >
             <thead>
               <tr>
-                <th>Fila / estado</th>
-                <th>Sede / ubicación</th>
-                <th>Cuadrilla / responsable</th>
-                <th>Herramienta</th>
+                <th>Herramienta del catálogo</th>
+                <th>Categoría</th>
+                <th>Unidad</th>
                 <th>Cantidad</th>
-                <th>Marca / condición</th>
-                <th>Costo / proveedor</th>
-                <th>Validación / movimiento</th>
+                <th>Condición física</th>
               </tr>
             </thead>
 
@@ -1875,8 +1906,28 @@
           class="empty-state"
           hidden
         >
-          No existen filas con información o los filtros no encontraron resultados.
+          No se encontraron herramientas con la búsqueda ingresada.
         </p>
+      </section>
+
+      <section class="quick-load-action-bar">
+        <div>
+          <strong id="quickLoadActionSummary">
+            Selecciona un destino y coloca cantidades mayores que cero.
+          </strong>
+          <small>
+            Cada herramienta seleccionada generará un movimiento CARGA_INICIAL confirmado.
+          </small>
+        </div>
+
+        <button
+          id="newToolButton"
+          class="primary-button"
+          type="button"
+          disabled
+        >
+          Guardar carga inicial
+        </button>
       </section>
     </main>
 
@@ -3909,7 +3960,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.18.3"></script>
-  <script src="js/app.js?v=0.18.3"></script>
+  <script src="js/config.js?v=0.19.0"></script>
+  <script src="js/app.js?v=0.19.0"></script>
 </body>
 </html>

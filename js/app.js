@@ -371,6 +371,14 @@
   const initialLoadSummaryValid = document.getElementById('initialLoadSummaryValid');
   const initialLoadSummaryErrors = document.getElementById('initialLoadSummaryErrors');
   const initialLoadSummaryLoaded = document.getElementById('initialLoadSummaryLoaded');
+  const initialLoadStatusPanel = document.getElementById('initialLoadStatusPanel');
+  const initialLoadStatusBadge = document.getElementById('initialLoadStatusBadge');
+  const initialLoadStatusText = document.getElementById('initialLoadStatusText');
+  const toggleInitialLoadButton = document.getElementById('toggleInitialLoadButton');
+  const openCatalogFromInitialLoadButton = document.getElementById('openCatalogFromInitialLoadButton');
+  const quickLoadEntityLabel = document.getElementById('quickLoadEntityLabel');
+  const quickLoadVisibleCount = document.getElementById('quickLoadVisibleCount');
+  const quickLoadActionSummary = document.getElementById('quickLoadActionSummary');
 
   const toolModal = document.getElementById('toolModal');
   const closeToolModalButton = document.getElementById('closeToolModalButton');
@@ -648,14 +656,16 @@
   };
   let herramientas = [];
   let cargaInicialFiltrada = [];
-  let resumenCargaInicial = {
-    total: 0,
-    pendientes: 0,
-    validas: 0,
-    errores: 0,
-    cargadas: 0
-  };
+  let cargaInicialHabilitada = true;
+  let puedeAdministrarCargaInicial = false;
   let puedeRegistrarHerramientas = false;
+  let catalogosCargaInicialRapida = {
+    sedes: [],
+    tiposDestino: ['ALMACEN', 'CUADRILLA'],
+    almacenes: [],
+    cuadrillas: [],
+    condiciones: []
+  };
   let puedeEditarHerramientas = false;
   let catalogosHerramientas = {
     tipos: [],
@@ -957,19 +967,16 @@
     });
 
     backToolsButton.addEventListener('click', mostrarDashboard);
-    newToolButton.addEventListener('click', procesarCargaInicial);
+    newToolButton.addEventListener('click', guardarCargaInicialRapida);
     refreshToolsButton.addEventListener('click', cargarHerramientas);
+    toggleInitialLoadButton.addEventListener('click', cambiarEstadoCargaInicialRapida);
+    openCatalogFromInitialLoadButton.addEventListener('click', abrirCatalogoDesdeCargaInicial);
 
-    [
-      toolSearch,
-      toolCategoryFilter,
-      toolTypeFilter,
-      toolConditionFilter,
-      toolSeriesFilter
-    ].forEach((control) => {
-      control.addEventListener('input', renderizarCargaInicial);
-      control.addEventListener('change', renderizarCargaInicial);
-    });
+    toolSearch.addEventListener('input', renderizarCargaInicialRapida);
+    toolCategoryFilter.addEventListener('change', actualizarDestinoCargaInicialRapida);
+    toolTypeFilter.addEventListener('change', actualizarDestinoCargaInicialRapida);
+    toolConditionFilter.addEventListener('change', actualizarResponsablesCargaInicialRapida);
+    toolSeriesFilter.addEventListener('change', actualizarResumenCargaInicialRapida);
 
     backCatalogButton.addEventListener('click', mostrarDashboard);
     newCatalogButton.addEventListener('click', abrirNuevoTipoCatalogo);
@@ -11131,16 +11138,17 @@
   async function cargarHerramientas() {
     toolsLoading.hidden = false;
     toolsLoading.textContent =
-      'Validando CARGA_INICIAL_STOCK…';
+      'Cargando catálogo y destinos…';
     toolsTable.hidden = true;
     toolsEmpty.hidden = true;
     refreshToolsButton.disabled = true;
+    newToolButton.disabled = true;
 
     try {
       const respuesta =
         await solicitarApi({
           accion:
-            'listar_carga_inicial',
+            'listar_carga_inicial_rapida',
           token:
             auth.token
         });
@@ -11148,61 +11156,119 @@
       if (!respuesta.correcto) {
         throw new Error(
           respuesta.mensaje ||
-          'No se pudo validar la carga inicial.'
+          'No se pudo cargar la carga inicial rápida.'
         );
       }
 
-      herramientas =
-        Array.isArray(
-          respuesta.filas
-        )
-          ? respuesta.filas
-          : [];
+      cargaInicialHabilitada =
+        Boolean(
+          respuesta.habilitada
+        );
 
-      resumenCargaInicial =
-        respuesta.resumen || {
-          total: 0,
-          pendientes: 0,
-          validas: 0,
-          errores: 0,
-          cargadas: 0
-        };
+      puedeAdministrarCargaInicial =
+        Boolean(
+          respuesta.puedeAdministrar
+        );
 
       puedeRegistrarHerramientas =
         Boolean(
-          respuesta.puedeProcesar
+          respuesta.puedeRegistrar
         );
 
-      newToolButton.hidden =
-        !puedeRegistrarHerramientas;
+      catalogosCargaInicialRapida = {
+        sedes:
+          respuesta.sedes || [],
+        tiposDestino:
+          respuesta.tiposDestino || [
+            'ALMACEN',
+            'CUADRILLA'
+          ],
+        almacenes:
+          respuesta.almacenes || [],
+        cuadrillas:
+          respuesta.cuadrillas || [],
+        condiciones:
+          respuesta.condiciones || []
+      };
 
-      newToolButton.disabled =
-        !puedeRegistrarHerramientas ||
-        Number(
-          resumenCargaInicial.validas || 0
-        ) === 0;
-
-      const validas =
-        Number(
-          resumenCargaInicial.validas || 0
-        );
-
-      newToolButton.textContent =
-        validas > 0
-          ? `Procesar ${Math.min(
-              validas,
-              Number(
-                respuesta.limitePorProceso || 100
+      herramientas =
+        (
+          Array.isArray(
+            respuesta.catalogo
+          )
+            ? respuesta.catalogo
+            : []
+        ).map(item => ({
+          ...item,
+          cantidad: 0,
+          condicionFisica:
+            catalogosCargaInicialRapida
+              .condiciones.includes(
+                'BUENA'
               )
-            )} fila(s) válida(s)`
-          : 'Sin filas válidas';
+              ? 'BUENA'
+              : (
+                  catalogosCargaInicialRapida
+                    .condiciones[0] ||
+                  ''
+                )
+        }));
 
-      actualizarFiltrosCargaInicial(
-        respuesta.catalogos || {}
+      actualizarEstadoVisualCargaInicial(
+        respuesta.estadoCargaInicial || {}
       );
 
-      actualizarResumenCargaInicial();
-      renderizarCargaInicial();
+      llenarSelectCargaInicial(
+        toolCategoryFilter,
+        catalogosCargaInicialRapida.sedes.map(sede => ({
+          valor:
+            sede,
+          etiqueta:
+            formatearTexto(
+              sede
+            )
+        })),
+        'Seleccionar sede'
+      );
+
+      llenarSelectCargaInicial(
+        toolTypeFilter,
+        catalogosCargaInicialRapida.tiposDestino.map(tipo => ({
+          valor:
+            tipo,
+          etiqueta:
+            formatearTexto(
+              tipo
+            )
+        })),
+        ''
+      );
+
+      if (
+        catalogosCargaInicialRapida.sedes.length === 1
+      ) {
+        toolCategoryFilter.value =
+          catalogosCargaInicialRapida.sedes[0];
+      }
+
+      if (!toolTypeFilter.value) {
+        toolTypeFilter.value =
+          'ALMACEN';
+      }
+
+      const botonCatalogo =
+        document.querySelector(
+          '[data-module="CATALOGO"]'
+        );
+
+      openCatalogFromInitialLoadButton.hidden =
+        Boolean(
+          botonCatalogo &&
+          botonCatalogo.hidden
+        );
+
+      actualizarDestinoCargaInicialRapida();
+      renderizarCargaInicialRapida();
 
       toolsLoading.hidden = true;
 
@@ -11219,152 +11285,320 @@
     }
   }
 
-  function actualizarFiltrosCargaInicial(
-    catalogos
+  function actualizarEstadoVisualCargaInicial(
+    estado
   ) {
-    llenarSelectConTodos(
+    initialLoadStatusBadge.classList.remove(
+      'quick-load-status-open',
+      'quick-load-status-closed'
+    );
+
+    if (cargaInicialHabilitada) {
+      initialLoadStatusBadge.textContent =
+        'Habilitada';
+
+      initialLoadStatusBadge.classList.add(
+        'quick-load-status-open'
+      );
+
+      initialLoadStatusText.textContent =
+        'La carga inicial está disponible para registrar el inventario existente.';
+
+    } else {
+      initialLoadStatusBadge.textContent =
+        'Cerrada';
+
+      initialLoadStatusBadge.classList.add(
+        'quick-load-status-closed'
+      );
+
+      initialLoadStatusText.textContent =
+        'La carga inicial está cerrada. Usa Movimientos para la operación diaria.';
+    }
+
+    if (
+      estado.usuario &&
+      estado.fecha
+    ) {
+      initialLoadStatusText.textContent +=
+        ` Último cambio: ${estado.usuario}.`;
+    }
+
+    toggleInitialLoadButton.hidden =
+      !puedeAdministrarCargaInicial;
+
+    toggleInitialLoadButton.textContent =
+      cargaInicialHabilitada
+        ? 'Cerrar carga inicial'
+        : 'Habilitar carga inicial';
+
+    [
       toolCategoryFilter,
-      catalogos.sedes || [],
-      'Todas'
-    );
-
-    llenarSelectConTodos(
       toolTypeFilter,
-      catalogos.ubicaciones || [],
-      'Todas'
-    );
-
-    llenarSelectConTodos(
       toolConditionFilter,
-      catalogos.estadosCarga || [],
-      'Todos'
-    );
-
-    llenarSelectConTodos(
       toolSeriesFilter,
-      catalogos.validaciones || [],
-      'Todas'
+      toolSearch
+    ].forEach(control => {
+      control.disabled =
+        !cargaInicialHabilitada;
+    });
+  }
+
+  function llenarSelectCargaInicial(
+    select,
+    opciones,
+    textoInicial
+  ) {
+    const valorAnterior =
+      select.value;
+
+    select.innerHTML = '';
+
+    if (textoInicial) {
+      const inicial =
+        document.createElement(
+          'option'
+        );
+
+      inicial.value = '';
+      inicial.textContent =
+        textoInicial;
+
+      select.appendChild(
+        inicial
+      );
+    }
+
+    opciones.forEach(item => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        item.valor;
+
+      option.textContent =
+        item.etiqueta;
+
+      select.appendChild(
+        option
+      );
+    });
+
+    if (
+      valorAnterior &&
+      opciones.some(item =>
+        item.valor ===
+        valorAnterior
+      )
+    ) {
+      select.value =
+        valorAnterior;
+    }
+  }
+
+  function actualizarDestinoCargaInicialRapida() {
+    const sede =
+      toolCategoryFilter.value;
+
+    const tipoDestino =
+      toolTypeFilter.value ||
+      'ALMACEN';
+
+    quickLoadEntityLabel.textContent =
+      tipoDestino ===
+        'CUADRILLA'
+        ? 'Cuadrilla'
+        : 'Almacén';
+
+    let opciones = [];
+
+    if (
+      tipoDestino ===
+        'CUADRILLA'
+    ) {
+      opciones =
+        catalogosCargaInicialRapida
+          .cuadrillas
+          .filter(item =>
+            !sede ||
+            item.sede ===
+            sede
+          )
+          .map(item => ({
+            valor:
+              item.idCuadrilla,
+            etiqueta:
+              [
+                item.codigoCuadrilla,
+                formatearTexto(
+                  item.plataforma
+                )
+              ]
+                .filter(Boolean)
+                .join(' · ')
+          }));
+
+    } else {
+      opciones =
+        catalogosCargaInicialRapida
+          .almacenes
+          .filter(item =>
+            !sede ||
+            item.sede ===
+            sede
+          )
+          .map(item => ({
+            valor:
+              item.idAlmacen,
+            etiqueta:
+              [
+                item.nombreAlmacen,
+                item.responsable
+              ]
+                .filter(Boolean)
+                .join(' · ')
+          }));
+    }
+
+    llenarSelectCargaInicial(
+      toolConditionFilter,
+      opciones,
+      tipoDestino ===
+        'CUADRILLA'
+        ? 'Seleccionar cuadrilla'
+        : 'Seleccionar almacén'
     );
+
+    actualizarResponsablesCargaInicialRapida();
   }
 
-  function actualizarResumenCargaInicial() {
-    initialLoadSummaryTotal.textContent =
-      String(
-        resumenCargaInicial.total || 0
-      );
+  function actualizarResponsablesCargaInicialRapida() {
+    const tipoDestino =
+      toolTypeFilter.value ||
+      'ALMACEN';
 
-    initialLoadSummaryValid.textContent =
-      String(
-        resumenCargaInicial.validas || 0
-      );
+    const idDestino =
+      toolConditionFilter.value;
 
-    initialLoadSummaryErrors.textContent =
-      String(
-        resumenCargaInicial.errores || 0
-      );
+    let opciones = [];
 
-    initialLoadSummaryLoaded.textContent =
-      String(
-        resumenCargaInicial.cargadas || 0
-      );
+    if (
+      tipoDestino ===
+        'CUADRILLA'
+    ) {
+      const cuadrilla =
+        catalogosCargaInicialRapida
+          .cuadrillas
+          .find(item =>
+            item.idCuadrilla ===
+            idDestino
+          );
+
+      opciones =
+        cuadrilla
+          ? (
+              cuadrilla.tecnicos || []
+            ).map(item => ({
+              valor:
+                item.dni,
+              etiqueta:
+                `${item.nombre} · ${item.dni}`
+            }))
+          : [];
+
+      toolSeriesFilter.disabled =
+        !cargaInicialHabilitada;
+
+    } else {
+      const almacen =
+        catalogosCargaInicialRapida
+          .almacenes
+          .find(item =>
+            item.idAlmacen ===
+            idDestino
+          );
+
+      opciones =
+        almacen
+          ? [{
+              valor:
+                almacen.responsable || almacen.idAlmacen,
+              etiqueta:
+                almacen.responsable ||
+                almacen.nombreAlmacen
+            }]
+          : [];
+
+      toolSeriesFilter.disabled = true;
+    }
+
+    llenarSelectCargaInicial(
+      toolSeriesFilter,
+      opciones,
+      tipoDestino ===
+        'CUADRILLA'
+        ? 'Seleccionar técnico'
+        : 'Responsable automático'
+    );
+
+    if (
+      tipoDestino ===
+        'ALMACEN' &&
+      opciones.length
+    ) {
+      toolSeriesFilter.value =
+        opciones[0].valor;
+    }
+
+    actualizarResumenCargaInicialRapida();
   }
 
-  function renderizarCargaInicial() {
+  function renderizarCargaInicialRapida() {
     const texto =
       normalizarBusqueda(
         toolSearch.value
       );
 
-    const sede =
-      String(
-        toolCategoryFilter.value || ''
-      ).toUpperCase();
-
-    const ubicacion =
-      String(
-        toolTypeFilter.value || ''
-      ).toUpperCase();
-
-    const estado =
-      String(
-        toolConditionFilter.value || ''
-      ).toUpperCase();
-
-    const validacion =
-      String(
-        toolSeriesFilter.value || ''
-      ).toUpperCase();
-
     cargaInicialFiltrada =
-      herramientas.filter(item => {
-        const coincideTexto =
-          !texto ||
-          normalizarBusqueda([
-            item.fila,
-            item.sede,
-            item.tipoUbicacion,
-            item.idAlmacen,
-            item.idCuadrilla,
-            item.cuadrilla,
-            item.dniResponsable,
-            item.responsable,
-            item.tipoHerramienta,
-            item.idTipo,
-            item.marcaReferencial,
-            item.condicionFisica,
-            item.proveedorReferencial,
-            item.mensaje,
-            item.idMovimiento
-          ].join(' ')).includes(
-            texto
-          );
-
-        const coincideSede =
-          !sede ||
-          item.sede === sede;
-
-        const coincideUbicacion =
-          !ubicacion ||
-          item.tipoUbicacion ===
-            ubicacion;
-
-        const coincideEstado =
-          !estado ||
-          item.estadoCarga ===
-            estado;
-
-        const coincideValidacion =
-          !validacion ||
-          item.validacion ===
-            validacion;
-
-        return (
-          coincideTexto &&
-          coincideSede &&
-          coincideUbicacion &&
-          coincideEstado &&
-          coincideValidacion
-        );
-      });
+      herramientas.filter(item =>
+        !texto ||
+        normalizarBusqueda([
+          item.tipoHerramienta,
+          item.categoria,
+          item.idTipo,
+          item.unidadMedida
+        ].join(' ')).includes(
+          texto
+        )
+      );
 
     toolsTableBody.innerHTML = '';
 
     cargaInicialFiltrada.forEach(item => {
       toolsTableBody.appendChild(
-        crearFilaCargaInicial(
+        crearFilaCargaInicialRapida(
           item
         )
       );
     });
+
+    quickLoadVisibleCount.textContent =
+      String(
+        cargaInicialFiltrada.length
+      );
 
     toolsLoading.hidden = true;
     toolsTable.hidden =
       cargaInicialFiltrada.length === 0;
     toolsEmpty.hidden =
       cargaInicialFiltrada.length !== 0;
+
+    actualizarResumenCargaInicialRapida();
   }
 
-  function crearFilaCargaInicial(
+  function crearFilaCargaInicialRapida(
     item
   ) {
     const fila =
@@ -11372,272 +11606,438 @@
         'tr'
       );
 
-    const estado =
-      document.createElement(
-        'td'
-      );
+    fila.dataset.toolId =
+      item.idTipo;
 
-    estado.className =
-      'initial-load-main-cell';
-
-    const clase = {
-      VALIDA:
-        'initial-load-validation-ok',
-      ERROR:
-        'initial-load-validation-error',
-      CARGADA:
-        'initial-load-validation-loaded'
-    }[
-      item.validacion
-    ] || '';
-
-    estado.innerHTML =
-      `<strong class="${clase}">${escaparHtml(
-        formatearTexto(
-          item.validacion ||
-          'PENDIENTE'
-        )
-      )}</strong>` +
-      `<small>${escaparHtml(
-        formatearTexto(
-          item.estadoCarga ||
-          'PENDIENTE'
-        )
-      )}</small>` +
-      `<span class="initial-load-row-number">Fila ${escaparHtml(
-        String(
-          item.fila || ''
-        )
-      )}</span>`;
-
-    fila.appendChild(
-      estado
+    fila.classList.toggle(
+      'is-selected',
+      Number(
+        item.cantidad || 0
+      ) > 0
     );
 
-    const ubicacion =
+    const herramienta =
       document.createElement(
         'td'
       );
 
-    ubicacion.className =
-      'initial-load-detail-cell';
+    herramienta.className =
+      'quick-load-tool-cell';
 
-    ubicacion.innerHTML =
+    herramienta.innerHTML =
       `<strong>${escaparHtml(
-        formatearTexto(
-          item.sede ||
-          'SIN_SEDE'
-        )
+        item.tipoHerramienta
       )}</strong>` +
       `<small>${escaparHtml(
-        [
-          formatearTexto(
-            item.tipoUbicacion ||
-            'SIN_UBICACION'
-          ),
-          item.idAlmacen
-        ].filter(Boolean).join(' · ')
+        item.idTipo
       )}</small>`;
 
     fila.appendChild(
-      ubicacion
+      herramienta
     );
 
-    const responsable =
-      document.createElement(
-        'td'
-      );
-
-    responsable.className =
-      'initial-load-detail-cell';
-
-    responsable.innerHTML =
-      `<strong>${escaparHtml(
-        item.cuadrilla ||
-        item.idCuadrilla ||
-        (
-          item.tipoUbicacion ===
-            'ALMACEN'
-            ? 'Almacén'
-            : 'Sin cuadrilla'
+    fila.appendChild(
+      crearCelda(
+        formatearTexto(
+          item.categoria ||
+          'SIN_CATEGORIA'
         )
-      )}</strong>` +
-      `<small>${escaparHtml(
-        [
-          item.responsable,
-          item.dniResponsable
-        ].filter(Boolean).join(' · ') ||
-        'Sin responsable'
-      )}</small>`;
-
-    fila.appendChild(
-      responsable
+      )
     );
 
-    const articulo =
+    fila.appendChild(
+      crearCelda(
+        formatearTexto(
+          item.unidadMedida ||
+          'UNIDAD'
+        )
+      )
+    );
+
+    const cantidadCelda =
       document.createElement(
         'td'
       );
-
-    articulo.className =
-      'initial-load-detail-cell';
-
-    articulo.innerHTML =
-      `<strong>${escaparHtml(
-        item.tipoHerramienta ||
-        'Sin herramienta'
-      )}</strong>` +
-      `<small>${escaparHtml(
-        item.idTipo ||
-        'ID_TIPO pendiente'
-      )}</small>`;
-
-    fila.appendChild(
-      articulo
-    );
 
     const cantidad =
       document.createElement(
-        'td'
+        'input'
       );
 
+    cantidad.type =
+      'number';
+
+    cantidad.min =
+      '0';
+
+    cantidad.step =
+      '1';
+
+    cantidad.inputMode =
+      'numeric';
+
     cantidad.className =
-      'report-number';
+      'quick-load-quantity';
 
-    cantidad.textContent =
-      `${formatearDecimalReporte(
-        item.cantidad
-      )} ${formatearTexto(
-        item.unidadMedida ||
-        ''
-      )}`.trim();
+    cantidad.value =
+      String(
+        item.cantidad || 0
+      );
 
-    fila.appendChild(
+    cantidad.disabled =
+      !cargaInicialHabilitada ||
+      !puedeRegistrarHerramientas;
+
+    cantidad.addEventListener(
+      'input',
+      () => {
+        const valor =
+          Math.max(
+            Number(
+              cantidad.value || 0
+            ),
+            0
+          );
+
+        item.cantidad =
+          Number.isFinite(
+            valor
+          )
+            ? valor
+            : 0;
+
+        fila.classList.toggle(
+          'is-selected',
+          item.cantidad > 0
+        );
+
+        actualizarResumenCargaInicialRapida();
+      }
+    );
+
+    cantidadCelda.appendChild(
       cantidad
     );
 
-    const condicion =
+    fila.appendChild(
+      cantidadCelda
+    );
+
+    const condicionCelda =
       document.createElement(
         'td'
+      );
+
+    const condicion =
+      document.createElement(
+        'select'
       );
 
     condicion.className =
-      'initial-load-detail-cell';
+      'quick-load-condition';
 
-    condicion.innerHTML =
-      `<strong>${escaparHtml(
-        item.marcaReferencial ||
-        'Sin marca'
-      )}</strong>` +
-      `<small>${escaparHtml(
-        formatearTexto(
-          item.condicionFisica ||
-          'SIN_CONDICION'
-        )
-      )}</small>`;
+    condicion.disabled =
+      !cargaInicialHabilitada ||
+      !puedeRegistrarHerramientas;
 
-    fila.appendChild(
+    catalogosCargaInicialRapida
+      .condiciones
+      .forEach(valor => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          valor;
+
+        option.textContent =
+          formatearTexto(
+            valor
+          );
+
+        condicion.appendChild(
+          option
+        );
+      });
+
+    condicion.value =
+      item.condicionFisica;
+
+    condicion.addEventListener(
+      'change',
+      () => {
+        item.condicionFisica =
+          condicion.value;
+      }
+    );
+
+    condicionCelda.appendChild(
       condicion
     );
 
-    const costo =
-      document.createElement(
-        'td'
-      );
-
-    costo.className =
-      'initial-load-detail-cell';
-
-    costo.innerHTML =
-      `<strong>${escaparHtml(
-        item.tipoCosto ===
-          'SIN_INFORMACION'
-          ? 'Sin información'
-          : formatearMonedaReporte(
-              item.costoReferencial
-            )
-      )}</strong>` +
-      `<small>${escaparHtml(
-        [
-          formatearTexto(
-            item.tipoCosto ||
-            'SIN_TIPO_COSTO'
-          ),
-          item.proveedorReferencial
-        ].filter(Boolean).join(' · ')
-      )}</small>`;
-
     fila.appendChild(
-      costo
-    );
-
-    const validacion =
-      document.createElement(
-        'td'
-      );
-
-    validacion.className =
-      'initial-load-message';
-
-    validacion.innerHTML =
-      `<strong class="${clase}">${escaparHtml(
-        item.mensaje ||
-        ''
-      )}</strong>` +
-      (
-        item.idMovimiento
-          ? `<small>${escaparHtml(
-              item.idMovimiento
-            )}</small>`
-          : ''
-      );
-
-    fila.appendChild(
-      validacion
+      condicionCelda
     );
 
     return fila;
   }
 
-  async function procesarCargaInicial() {
-    const validas =
-      Number(
-        resumenCargaInicial.validas || 0
+  function actualizarResumenCargaInicialRapida() {
+    const seleccionados =
+      herramientas.filter(item =>
+        Number(
+          item.cantidad || 0
+        ) > 0
       );
 
-    if (
+    const cantidadTotal =
+      seleccionados.reduce(
+        (
+          total,
+          item
+        ) =>
+          total +
+          Number(
+            item.cantidad || 0
+          ),
+        0
+      );
+
+    initialLoadSummaryTotal.textContent =
+      String(
+        herramientas.length
+      );
+
+    initialLoadSummaryValid.textContent =
+      String(
+        seleccionados.length
+      );
+
+    initialLoadSummaryErrors.textContent =
+      formatearNumeroReporte(
+        cantidadTotal
+      );
+
+    const destino =
+      obtenerDestinoCargaInicialRapida();
+
+    initialLoadSummaryLoaded.textContent =
+      destino.etiqueta ||
+      'Sin seleccionar';
+
+    const formularioCompleto =
+      Boolean(
+        toolCategoryFilter.value &&
+        toolTypeFilter.value &&
+        toolConditionFilter.value &&
+        (
+          toolTypeFilter.value ===
+            'ALMACEN' ||
+          toolSeriesFilter.value
+        )
+      );
+
+    newToolButton.disabled =
+      !cargaInicialHabilitada ||
       !puedeRegistrarHerramientas ||
-      validas === 0
+      !formularioCompleto ||
+      seleccionados.length === 0;
+
+    quickLoadActionSummary.textContent =
+      seleccionados.length
+        ? `${seleccionados.length} tipo(s) seleccionado(s) · ${cantidadTotal} unidad(es)`
+        : 'Selecciona un destino y coloca cantidades mayores que cero.';
+  }
+
+  function obtenerDestinoCargaInicialRapida() {
+    const tipo =
+      toolTypeFilter.value;
+
+    const id =
+      toolConditionFilter.value;
+
+    if (
+      tipo ===
+        'CUADRILLA'
     ) {
+      const cuadrilla =
+        catalogosCargaInicialRapida
+          .cuadrillas
+          .find(item =>
+            item.idCuadrilla ===
+            id
+          );
+
+      return {
+        etiqueta:
+          cuadrilla
+            ? cuadrilla.codigoCuadrilla
+            : '',
+        responsable:
+          toolSeriesFilter.value
+      };
+    }
+
+    const almacen =
+      catalogosCargaInicialRapida
+        .almacenes
+        .find(item =>
+          item.idAlmacen ===
+          id
+        );
+
+    return {
+      etiqueta:
+        almacen
+          ? almacen.nombreAlmacen
+          : '',
+      responsable:
+        ''
+    };
+  }
+
+  async function guardarCargaInicialRapida() {
+    const articulos =
+      herramientas
+        .filter(item =>
+          Number(
+            item.cantidad || 0
+          ) > 0
+        )
+        .map(item => ({
+          idTipo:
+            item.idTipo,
+          cantidad:
+            Number(
+              item.cantidad
+            ),
+          condicionFisica:
+            item.condicionFisica
+        }));
+
+    if (!articulos.length) {
+      window.alert(
+        'Selecciona al menos una herramienta.'
+      );
       return;
     }
 
-    const confirmar =
+    const destino =
+      obtenerDestinoCargaInicialRapida();
+
+    const confirmado =
       window.confirm(
-        `Se procesarán hasta 100 filas válidas y se actualizará Stock Actual. ¿Continuar?`
+        `Se registrarán ${articulos.length} tipo(s) de herramienta en ${destino.etiqueta}. ¿Continuar?`
       );
 
-    if (!confirmar) {
+    if (!confirmado) {
       return;
     }
 
     newToolButton.disabled = true;
     newToolButton.textContent =
-      'Procesando…';
+      'Guardando…';
 
     try {
       const respuesta =
         await solicitarApi({
           accion:
-            'procesar_carga_inicial',
+            'guardar_carga_inicial_rapida',
           token:
-            auth.token
+            auth.token,
+          sede:
+            toolCategoryFilter.value,
+          tipoDestino:
+            toolTypeFilter.value,
+          idDestino:
+            toolConditionFilter.value,
+          dniResponsable:
+            toolTypeFilter.value ===
+              'CUADRILLA'
+              ? toolSeriesFilter.value
+              : '',
+          articulos:
+            articulos
         });
 
       if (!respuesta.correcto) {
         throw new Error(
           respuesta.mensaje ||
-          'No se pudo procesar la carga inicial.'
+          'No se pudo guardar la carga inicial.'
+        );
+      }
+
+      if (
+        Number(
+          respuesta.errores || 0
+        ) > 0
+      ) {
+        window.alert(
+          respuesta.mensaje
+        );
+      } else {
+        mostrarToast(
+          respuesta.mensaje
+        );
+      }
+
+      await cargarHerramientas();
+
+    } catch (error) {
+      window.alert(
+        error.message
+      );
+
+    } finally {
+      newToolButton.textContent =
+        'Guardar carga inicial';
+
+      actualizarResumenCargaInicialRapida();
+    }
+  }
+
+  async function cambiarEstadoCargaInicialRapida() {
+    if (
+      !puedeAdministrarCargaInicial
+    ) {
+      return;
+    }
+
+    const nuevoEstado =
+      !cargaInicialHabilitada;
+
+    const mensaje =
+      nuevoEstado
+        ? '¿Deseas habilitar nuevamente la carga inicial?'
+        : '¿Deseas cerrar la carga inicial? Después la operación diaria continuará desde Movimientos.';
+
+    if (
+      !window.confirm(
+        mensaje
+      )
+    ) {
+      return;
+    }
+
+    toggleInitialLoadButton.disabled =
+      true;
+
+    try {
+      const respuesta =
+        await solicitarApi({
+          accion:
+            'cambiar_estado_carga_inicial',
+          token:
+            auth.token,
+          habilitada:
+            nuevoEstado
+        });
+
+      if (!respuesta.correcto) {
+        throw new Error(
+          respuesta.mensaje ||
+          'No se pudo cambiar el estado.'
         );
       }
 
@@ -11653,8 +12053,29 @@
       );
 
     } finally {
-      newToolButton.disabled = false;
+      toggleInitialLoadButton.disabled =
+        false;
     }
+  }
+
+  function abrirCatalogoDesdeCargaInicial() {
+    const boton =
+      document.querySelector(
+        '[data-module="CATALOGO"]'
+      );
+
+    if (
+      !boton ||
+      boton.hidden
+    ) {
+      window.alert(
+        'Tu perfil no tiene acceso al catálogo.'
+      );
+
+      return;
+    }
+
+    abrirCatalogoHerramientas();
   }
 
   async function abrirCatalogoHerramientas() {
@@ -15248,12 +15669,15 @@
     movimientos = [];
     herramientas = [];
     cargaInicialFiltrada = [];
-    resumenCargaInicial = {
-      total: 0,
-      pendientes: 0,
-      validas: 0,
-      errores: 0,
-      cargadas: 0
+    cargaInicialHabilitada = true;
+    puedeAdministrarCargaInicial = false;
+    puedeRegistrarHerramientas = false;
+    catalogosCargaInicialRapida = {
+      sedes: [],
+      tiposDestino: ['ALMACEN', 'CUADRILLA'],
+      almacenes: [],
+      cuadrillas: [],
+      condiciones: []
     };
     tiposCatalogo = [];
     almacenes = [];
