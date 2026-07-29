@@ -2733,3 +2733,62 @@ footer {
     flex-direction: column;
   }
 }
+
+
+.quick-load-condition-cell {
+  min-width: 430px;
+}
+
+.quick-load-condition-list {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-load-condition-line {
+  display: grid;
+  grid-template-columns: 110px minmax(170px, 1fr) 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.quick-load-condition-line .quick-load-quantity,
+.quick-load-condition-line .quick-load-condition {
+  width: 100%;
+}
+
+.quick-load-remove-condition {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-soft);
+  color: var(--danger);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.quick-load-add-condition {
+  justify-self: start;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px dashed var(--primary);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 620px) {
+  .quick-load-condition-cell {
+    min-width: 360px;
+  }
+
+  .quick-load-condition-line {
+    grid-template-columns: 90px minmax(150px, 1fr) 34px;
+  }
+}

@@ -12,7 +12,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="css/styles.css?v=0.19.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.19.1">
 </head>
 <body>
   <main id="loginView" class="login-view">
@@ -1842,7 +1842,7 @@
         </article>
 
         <article class="initial-load-summary-card">
-          <span>Tipos seleccionados</span>
+          <span>Tipos / condiciones</span>
           <strong id="initialLoadSummaryValid">0</strong>
         </article>
 
@@ -1892,8 +1892,7 @@
                 <th>Herramienta del catálogo</th>
                 <th>Categoría</th>
                 <th>Unidad</th>
-                <th>Cantidad</th>
-                <th>Condición física</th>
+                <th colspan="2">Cantidad por condición física</th>
               </tr>
             </thead>
 
@@ -3158,6 +3157,14 @@
               <label for="formMovementUnit">Unidad</label>
               <input id="formMovementUnit" type="text" readonly>
             </div>
+
+            <div
+              id="movementConditionGroup"
+              class="field-group"
+            >
+              <label for="formMovementCondition">Condición física</label>
+              <select id="formMovementCondition" required></select>
+            </div>
           </div>
         </div>
 
@@ -3960,7 +3967,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=0.19.0"></script>
-  <script src="js/app.js?v=0.19.0"></script>
+  <script src="js/config.js?v=0.19.1"></script>
+  <script src="js/app.js?v=0.19.1"></script>
 </body>
 </html>

@@ -324,6 +324,8 @@
   const formMovementTool = document.getElementById('formMovementTool');
   const formMovementQuantity = document.getElementById('formMovementQuantity');
   const formMovementUnit = document.getElementById('formMovementUnit');
+  const movementConditionGroup = document.getElementById('movementConditionGroup');
+  const formMovementCondition = document.getElementById('formMovementCondition');
 
   const formMovementOriginType = document.getElementById('formMovementOriginType');
   const formMovementOriginSite = document.getElementById('formMovementOriginSite');
@@ -652,10 +654,12 @@
     cuadrillas: [],
     tecnicos: [],
     supervisores: [],
+    condiciones: [],
     proveedores: []
   };
   let herramientas = [];
   let cargaInicialFiltrada = [];
+  let cargaInicialCondicionSecuencia = 0;
   let cargaInicialHabilitada = true;
   let puedeAdministrarCargaInicial = false;
   let puedeRegistrarHerramientas = false;
@@ -9244,7 +9248,14 @@
       celdaIdentificacion.innerHTML =
         `<strong>Control por cantidad</strong>` +
         `<small>${escaparHtml(
-          item.idStock
+          [
+            item.condicionFisica
+              ? `Condición: ${formatearTexto(
+                  item.condicionFisica
+                )}`
+              : 'Condición no informada',
+            item.idStock
+          ].join(' · ')
         )}</small>`;
     }
 
@@ -10436,8 +10447,10 @@
 
     if (!tipo) {
       movementToolGroup.hidden = true;
+      movementConditionGroup.hidden = true;
       formMovementQuantity.value = '';
       formMovementUnit.value = '';
+      formMovementCondition.innerHTML = '';
       return;
     }
 
@@ -10447,6 +10460,48 @@
 
     movementToolGroup.hidden =
       !esUnitario;
+
+    movementConditionGroup.hidden =
+      esUnitario;
+
+    formMovementCondition.required =
+      !esUnitario;
+
+    formMovementCondition.innerHTML = '';
+
+    if (!esUnitario) {
+      (
+        catalogosMovimientos.condiciones || []
+      ).forEach(valor => {
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          valor;
+
+        option.textContent =
+          formatearTexto(
+            valor
+          );
+
+        formMovementCondition.appendChild(
+          option
+        );
+      });
+
+      if (
+        Array.from(
+          formMovementCondition.options
+        ).some(option =>
+          option.value === 'BUENA'
+        )
+      ) {
+        formMovementCondition.value =
+          'BUENA';
+      }
+    }
 
     formMovementQuantity.disabled =
       esUnitario;
@@ -11034,6 +11089,12 @@
           'UNITARIO'
           ? 1
           : formMovementQuantity.value,
+      condicionFisica:
+        tipoArticulo &&
+        tipoArticulo.tipoControl ===
+          'CANTIDAD'
+          ? formMovementCondition.value
+          : '',
       origen:
         construirUbicacionMovimientoPayload(
           'origen'
@@ -11065,6 +11126,17 @@
     ) {
       movementFormMessage.textContent =
         'Completa los campos obligatorios.';
+      return;
+    }
+
+    if (
+      tipoArticulo &&
+      tipoArticulo.tipoControl ===
+        'CANTIDAD' &&
+      !payload.condicionFisica
+    ) {
+      movementFormMessage.textContent =
+        'Selecciona la condición física del artículo.';
       return;
     }
 
@@ -11200,18 +11272,21 @@
             : []
         ).map(item => ({
           ...item,
-          cantidad: 0,
-          condicionFisica:
-            catalogosCargaInicialRapida
-              .condiciones.includes(
-                'BUENA'
-              )
-              ? 'BUENA'
-              : (
-                  catalogosCargaInicialRapida
-                    .condiciones[0] ||
-                  ''
+          condiciones: [
+            crearLineaCondicionCargaInicialRapida(
+              catalogosCargaInicialRapida
+                .condiciones.includes(
+                  'BUENA'
                 )
+                ? 'BUENA'
+                : (
+                    catalogosCargaInicialRapida
+                      .condiciones[0] ||
+                    ''
+                  ),
+              0
+            )
+          ]
         }));
 
       actualizarEstadoVisualCargaInicial(
@@ -11598,6 +11673,24 @@
     actualizarResumenCargaInicialRapida();
   }
 
+  function crearLineaCondicionCargaInicialRapida(
+    condicionFisica,
+    cantidad
+  ) {
+    cargaInicialCondicionSecuencia += 1;
+
+    return {
+      id:
+        cargaInicialCondicionSecuencia,
+      condicionFisica:
+        condicionFisica,
+      cantidad:
+        Number(
+          cantidad || 0
+        )
+    };
+  }
+
   function crearFilaCargaInicialRapida(
     item
   ) {
@@ -11609,11 +11702,16 @@
     fila.dataset.toolId =
       item.idTipo;
 
+    const tieneCantidad =
+      (item.condiciones || []).some(linea =>
+        Number(
+          linea.cantidad || 0
+        ) > 0
+      );
+
     fila.classList.toggle(
       'is-selected',
-      Number(
-        item.cantidad || 0
-      ) > 0
+      tieneCantidad
     );
 
     const herramienta =
@@ -11654,152 +11752,321 @@
       )
     );
 
-    const cantidadCelda =
+    const celdaCondiciones =
       document.createElement(
         'td'
       );
 
-    const cantidad =
+    celdaCondiciones.colSpan =
+      2;
+
+    celdaCondiciones.className =
+      'quick-load-condition-cell';
+
+    const lista =
       document.createElement(
-        'input'
+        'div'
       );
 
-    cantidad.type =
-      'number';
+    lista.className =
+      'quick-load-condition-list';
 
-    cantidad.min =
-      '0';
-
-    cantidad.step =
-      '1';
-
-    cantidad.inputMode =
-      'numeric';
-
-    cantidad.className =
-      'quick-load-quantity';
-
-    cantidad.value =
-      String(
-        item.cantidad || 0
-      );
-
-    cantidad.disabled =
-      !cargaInicialHabilitada ||
-      !puedeRegistrarHerramientas;
-
-    cantidad.addEventListener(
-      'input',
+    const actualizarFila =
       () => {
-        const valor =
-          Math.max(
-            Number(
-              cantidad.value || 0
-            ),
-            0
-          );
-
-        item.cantidad =
-          Number.isFinite(
-            valor
-          )
-            ? valor
-            : 0;
-
         fila.classList.toggle(
           'is-selected',
-          item.cantidad > 0
+          (item.condiciones || []).some(linea =>
+            Number(
+              linea.cantidad || 0
+            ) > 0
+          )
         );
 
         actualizarResumenCargaInicialRapida();
-      }
-    );
+      };
 
-    cantidadCelda.appendChild(
-      cantidad
-    );
-
-    fila.appendChild(
-      cantidadCelda
-    );
-
-    const condicionCelda =
-      document.createElement(
-        'td'
-      );
-
-    const condicion =
-      document.createElement(
-        'select'
-      );
-
-    condicion.className =
-      'quick-load-condition';
-
-    condicion.disabled =
-      !cargaInicialHabilitada ||
-      !puedeRegistrarHerramientas;
-
-    catalogosCargaInicialRapida
-      .condiciones
-      .forEach(valor => {
-        const option =
-          document.createElement(
-            'option'
-          );
-
-        option.value =
-          valor;
-
-        option.textContent =
-          formatearTexto(
-            valor
-          );
-
-        condicion.appendChild(
-          option
+    (item.condiciones || []).forEach(linea => {
+      const contenedor =
+        document.createElement(
+          'div'
         );
-      });
 
-    condicion.value =
-      item.condicionFisica;
+      contenedor.className =
+        'quick-load-condition-line';
 
-    condicion.addEventListener(
-      'change',
+      const cantidad =
+        document.createElement(
+          'input'
+        );
+
+      cantidad.type =
+        'number';
+
+      cantidad.min =
+        '0';
+
+      cantidad.step =
+        '1';
+
+      cantidad.inputMode =
+        'numeric';
+
+      cantidad.className =
+        'quick-load-quantity';
+
+      cantidad.value =
+        String(
+          linea.cantidad || 0
+        );
+
+      cantidad.disabled =
+        !cargaInicialHabilitada ||
+        !puedeRegistrarHerramientas;
+
+      cantidad.addEventListener(
+        'input',
+        () => {
+          const valor =
+            Math.max(
+              Number(
+                cantidad.value || 0
+              ),
+              0
+            );
+
+          linea.cantidad =
+            Number.isFinite(
+              valor
+            )
+              ? valor
+              : 0;
+
+          actualizarFila();
+        }
+      );
+
+      const condicion =
+        document.createElement(
+          'select'
+        );
+
+      condicion.className =
+        'quick-load-condition';
+
+      condicion.disabled =
+        !cargaInicialHabilitada ||
+        !puedeRegistrarHerramientas;
+
+      catalogosCargaInicialRapida
+        .condiciones
+        .forEach(valor => {
+          const option =
+            document.createElement(
+              'option'
+            );
+
+          option.value =
+            valor;
+
+          option.textContent =
+            formatearTexto(
+              valor
+            );
+
+          condicion.appendChild(
+            option
+          );
+        });
+
+      condicion.value =
+        linea.condicionFisica;
+
+      condicion.addEventListener(
+        'change',
+        () => {
+          const repetida =
+            (item.condiciones || []).some(otra =>
+              otra.id !== linea.id &&
+              otra.condicionFisica ===
+                condicion.value
+            );
+
+          if (repetida) {
+            window.alert(
+              'Esa condición ya fue agregada para esta herramienta.'
+            );
+
+            condicion.value =
+              linea.condicionFisica;
+
+            return;
+          }
+
+          linea.condicionFisica =
+            condicion.value;
+
+          actualizarFila();
+        }
+      );
+
+      const quitar =
+        document.createElement(
+          'button'
+        );
+
+      quitar.type =
+        'button';
+
+      quitar.className =
+        'quick-load-remove-condition';
+
+      quitar.textContent =
+        '×';
+
+      quitar.title =
+        'Quitar condición';
+
+      quitar.disabled =
+        !cargaInicialHabilitada ||
+        !puedeRegistrarHerramientas ||
+        item.condiciones.length <= 1;
+
+      quitar.addEventListener(
+        'click',
+        () => {
+          item.condiciones =
+            item.condiciones.filter(otra =>
+              otra.id !== linea.id
+            );
+
+          renderizarCargaInicialRapida();
+        }
+      );
+
+      contenedor.appendChild(
+        cantidad
+      );
+
+      contenedor.appendChild(
+        condicion
+      );
+
+      contenedor.appendChild(
+        quitar
+      );
+
+      lista.appendChild(
+        contenedor
+      );
+    });
+
+    const agregar =
+      document.createElement(
+        'button'
+      );
+
+    agregar.type =
+      'button';
+
+    agregar.className =
+      'quick-load-add-condition';
+
+    agregar.textContent =
+      '+ Otra condición';
+
+    agregar.disabled =
+      !cargaInicialHabilitada ||
+      !puedeRegistrarHerramientas ||
+      item.condiciones.length >=
+        catalogosCargaInicialRapida
+          .condiciones.length;
+
+    agregar.addEventListener(
+      'click',
       () => {
-        item.condicionFisica =
-          condicion.value;
+        const usadas =
+          new Set(
+            item.condiciones.map(linea =>
+              linea.condicionFisica
+            )
+          );
+
+        const siguiente =
+          catalogosCargaInicialRapida
+            .condiciones
+            .find(valor =>
+              !usadas.has(
+                valor
+              )
+            );
+
+        if (!siguiente) {
+          return;
+        }
+
+        item.condiciones.push(
+          crearLineaCondicionCargaInicialRapida(
+            siguiente,
+            0
+          )
+        );
+
+        renderizarCargaInicialRapida();
       }
     );
 
-    condicionCelda.appendChild(
-      condicion
+    lista.appendChild(
+      agregar
+    );
+
+    celdaCondiciones.appendChild(
+      lista
     );
 
     fila.appendChild(
-      condicionCelda
+      celdaCondiciones
     );
 
     return fila;
   }
 
+  function obtenerLineasSeleccionadasCargaInicialRapida() {
+    return herramientas.flatMap(item =>
+      (item.condiciones || [])
+        .filter(linea =>
+          Number(
+            linea.cantidad || 0
+          ) > 0
+        )
+        .map(linea => ({
+          item:
+            item,
+          linea:
+            linea
+        }))
+    );
+  }
+
   function actualizarResumenCargaInicialRapida() {
     const seleccionados =
-      herramientas.filter(item =>
-        Number(
-          item.cantidad || 0
-        ) > 0
-      );
+      obtenerLineasSeleccionadasCargaInicialRapida();
+
+    const tiposSeleccionados =
+      new Set(
+        seleccionados.map(registro =>
+          registro.item.idTipo
+        )
+      ).size;
 
     const cantidadTotal =
       seleccionados.reduce(
         (
           total,
-          item
+          registro
         ) =>
           total +
           Number(
-            item.cantidad || 0
+            registro.linea.cantidad || 0
           ),
         0
       );
@@ -11810,9 +12077,7 @@
       );
 
     initialLoadSummaryValid.textContent =
-      String(
-        seleccionados.length
-      );
+      `${tiposSeleccionados} / ${seleccionados.length}`;
 
     initialLoadSummaryErrors.textContent =
       formatearNumeroReporte(
@@ -11846,7 +12111,7 @@
 
     quickLoadActionSummary.textContent =
       seleccionados.length
-        ? `${seleccionados.length} tipo(s) seleccionado(s) · ${cantidadTotal} unidad(es)`
+        ? `${seleccionados.length} registro(s) por condición · ${cantidadTotal} unidad(es)`
         : 'Selecciona un destino y coloca cantidades mayores que cero.';
   }
 
@@ -11898,23 +12163,20 @@
   }
 
   async function guardarCargaInicialRapida() {
+    const seleccionados =
+      obtenerLineasSeleccionadasCargaInicialRapida();
+
     const articulos =
-      herramientas
-        .filter(item =>
+      seleccionados.map(registro => ({
+        idTipo:
+          registro.item.idTipo,
+        cantidad:
           Number(
-            item.cantidad || 0
-          ) > 0
-        )
-        .map(item => ({
-          idTipo:
-            item.idTipo,
-          cantidad:
-            Number(
-              item.cantidad
-            ),
-          condicionFisica:
-            item.condicionFisica
-        }));
+            registro.linea.cantidad
+          ),
+        condicionFisica:
+          registro.linea.condicionFisica
+      }));
 
     if (!articulos.length) {
       window.alert(
@@ -11928,7 +12190,7 @@
 
     const confirmado =
       window.confirm(
-        `Se registrarán ${articulos.length} tipo(s) de herramienta en ${destino.etiqueta}. ¿Continuar?`
+        `Se registrarán ${articulos.length} línea(s) por condición en ${destino.etiqueta}. ¿Continuar?`
       );
 
     if (!confirmado) {
@@ -15669,6 +15931,7 @@
     movimientos = [];
     herramientas = [];
     cargaInicialFiltrada = [];
+    cargaInicialCondicionSecuencia = 0;
     cargaInicialHabilitada = true;
     puedeAdministrarCargaInicial = false;
     puedeRegistrarHerramientas = false;
